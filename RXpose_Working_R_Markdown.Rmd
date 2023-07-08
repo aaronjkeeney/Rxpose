@@ -11,6 +11,7 @@ knitr::opts_chunk$set(echo = TRUE)
 ```
 
 ## Rxposé: An Analysis of Performance-Enhancing Drug Use in the Sport of Weightlifting
+Note : This portfolio project presents an opportunity to practice SQL skills, as well as learning how to link a database and run multiple languages within an Rmarkdown. There are places where it may be simpler to use only R, but it is a valuable learning experience, regardless.
 
 ### Background
 Weightlifting has been one of the sports with the highest (recorded) prevalence of drug use. Rumors are always circling, and considerable evidence has shown that covert as well as state-sponsored doping rings are commonplace. Many people believe that the number of "clean" athletes at the elite level is extremely low, possibly as low as zero.
@@ -44,26 +45,43 @@ At least for now, we will restrict our analysis to Olympic competition. While th
 ```{r}
 ## Packages for this analysis
 library(tidyverse)
+library(RSQLite)
+library(DBI)
+library(dbplyr)
 getwd()
-setwd("~/Documents/Data Analytics Projects/Rxpose")
+setwd("~/Documents/Data Analytics Projects/Rxpose/Kaggle Olympics Data")
+olympics_data_raw <- read_csv("olympic_results.csv")
+
+con <- DBI::dbConnect(RSQLite::SQLite(), 
+        dbname = "olympics_db.sqlite")
+
+dbWriteTable(con, 
+             "all_olympics_results", 
+             olympics_data_raw, 
+             overwrite = TRUE)
 ```
 First, I sorted data in BigQuery, as it was much easier to visualize there. Only weightlifting data was extracted, and only from 1976 and later. This is due to two reasons. First, there was a [rule shift](https://en.wikipedia.org/wiki/Clean_and_press) after 1972 that greatly affected the total weight lifted. Second, anabolic steroids were not banned until 1975. [source](https://www.acog.org/clinical/clinical-guidance/committee-opinion/articles/2011/04/performance-enhancing-anabolic-steroid-abuse-in-women#:~:text=Anabolic%20steroids%20were%20first%20discovered,performance%20and%20enhance%20cosmetic%20appearance.)
 
-Note: I know it is possible to run SQL code in R-- The next project is setting that up.
-```{r}
-##SELECT event_title,rank_position, country_3_letter_code, athlete_full_name,
-##  CAST(value_unit AS decimal) AS total_kg, value_type,
-##  CAST(RIGHT(slug_game,4) AS INT64) AS year
-##FROM
-##  `weightliftinganalysis.Olympics_Results_86_to_20.Olympics Results`
-##WHERE
-##  discipline_title = "Weightlifting" AND
-##  value_type IS NOT NULL AND
-##  CAST(RIGHT(slug_game,4) AS decimal) >1972 
-  
-  ## Why can I not use "year" as a variable here? Add it to the table with a join?
+Below is the code that was run in SQLite within the markdown file. This filters for only weightlifting results from the correct years, and it extracts and casts the competition year and the weight lifted as more usable data types.
+
+```{sql connection=con}
+SELECT event_title, rank_position, country_3_letter_code, athlete_full_name,
+  value_type,
+  CAST(value_unit AS decimal) AS total_kg,
+  CAST(SUBSTR(slug_game, -4) AS INT) AS year
+FROM
+  all_olympics_results
+WHERE
+  discipline_title = "Weightlifting" 
+  AND
+  value_type IS NOT NULL 
+  AND
+  year > 1972
+
+-- Why can I not use "year" as a variable here? Add it to the table with a join?
+-- Works here, just not in BigQuery
+-- CAST(SUBSTR(slug_game, 4) AS INT) >1972 for use in BigQuery
 ```
-Mostly, this code is intended to convert data types and to name columns more recognizably. This data set is small enough to use a spreadsheet, so I will finish cleaning and do initial analysis there.
 
 To begin the cleaning process, I created a new table with the best performances by each athlete. (This may be an issue, as it might eliminate performances of athletes that rank better by Sinclair if they moved up a category and underperformed.)
 ```{r}

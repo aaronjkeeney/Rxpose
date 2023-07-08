@@ -1,9 +1,14 @@
 RXposé
 ================
 Aaron
-2023-07-07
+2023-07-08
 
 ## Rxposé: An Analysis of Performance-Enhancing Drug Use in the Sport of Weightlifting
+
+Note : This portfolio project presents an opportunity to practice SQL
+skills, as well as learning how to link a database and run multiple
+languages within an Rmarkdown. There are places where it may be simpler
+to use only R, but it is a valuable learning experience, regardless.
 
 ### Background
 
@@ -80,13 +85,46 @@ library(tidyverse)
     ## ℹ Use the conflicted package (<http://conflicted.r-lib.org/>) to force all conflicts to become errors
 
 ``` r
+library(RSQLite)
+library(DBI)
+library(dbplyr)
+```
+
+    ## 
+    ## Attaching package: 'dbplyr'
+    ## 
+    ## The following objects are masked from 'package:dplyr':
+    ## 
+    ##     ident, sql
+
+``` r
 getwd()
 ```
 
     ## [1] "/Users/aaronkeeney/Documents/Data Analytics Projects/Rxpose"
 
 ``` r
-setwd("~/Documents/Data Analytics Projects/Rxpose")
+setwd("~/Documents/Data Analytics Projects/Rxpose/Kaggle Olympics Data")
+olympics_data_raw <- read_csv("olympic_results.csv")
+```
+
+    ## Rows: 162804 Columns: 15
+    ## ── Column specification ────────────────────────────────────────────────────────
+    ## Delimiter: ","
+    ## chr (14): discipline_title, event_title, slug_game, participant_type, medal_...
+    ## lgl  (1): rank_equal
+    ## 
+    ## ℹ Use `spec()` to retrieve the full column specification for this data.
+    ## ℹ Specify the column types or set `show_col_types = FALSE` to quiet this message.
+
+``` r
+con <- DBI::dbConnect(RSQLite::SQLite(), 
+        dbname = "olympics_db.sqlite")
+
+dbWriteTable(con, 
+             "all_olympics_results", 
+             olympics_data_raw, 
+             overwrite = TRUE)
 ```
 
 First, I sorted data in BigQuery, as it was much easier to visualize
@@ -97,26 +135,48 @@ greatly affected the total weight lifted. Second, anabolic steroids were
 not banned until 1975.
 [source](https://www.acog.org/clinical/clinical-guidance/committee-opinion/articles/2011/04/performance-enhancing-anabolic-steroid-abuse-in-women#:~:text=Anabolic%20steroids%20were%20first%20discovered,performance%20and%20enhance%20cosmetic%20appearance.)
 
-Note: I know it is possible to run SQL code in R– The next project is
-setting that up.
+Below is the code that was run in SQLite within the markdown file. This
+filters for only weightlifting results from the correct years, and it
+extracts and casts the competition year and the weight lifted as more
+usable data types.
 
-``` r
-##SELECT event_title,rank_position, country_3_letter_code, athlete_full_name,
-##  CAST(value_unit AS decimal) AS total_kg, value_type,
-##  CAST(RIGHT(slug_game,4) AS INT64) AS year
-##FROM
-##  `weightliftinganalysis.Olympics_Results_86_to_20.Olympics Results`
-##WHERE
-##  discipline_title = "Weightlifting" AND
-##  value_type IS NOT NULL AND
-##  CAST(RIGHT(slug_game,4) AS decimal) >1972 
-  
-  ## Why can I not use "year" as a variable here? Add it to the table with a join?
+``` sql
+SELECT event_title, rank_position, country_3_letter_code, athlete_full_name,
+  value_type,
+  CAST(value_unit AS decimal) AS total_kg,
+  CAST(SUBSTR(slug_game, -4) AS INT) AS year
+FROM
+  all_olympics_results
+WHERE
+  discipline_title = "Weightlifting" 
+  AND
+  value_type IS NOT NULL 
+  AND
+  year > 1972
+
+-- Why can I not use "year" as a variable here? Add it to the table with a join?
+-- Works here, just not in BigQuery
+-- CAST(SUBSTR(slug_game, 4) AS INT) >1972 for use in BigQuery
 ```
 
-Mostly, this code is intended to convert data types and to name columns
-more recognizably. This data set is small enough to use a spreadsheet,
-so I will finish cleaning and do initial analysis there.
+<div class="knitsql-table">
+
+| event_title | rank_position | country_3_letter_code | athlete_full_name             | value_type | total_kg | year |
+|:------------|:--------------|:----------------------|:------------------------------|:-----------|---------:|-----:|
+| Men’s 61kg  | 4             | JPN                   | Yoichi ITOKAZU                | WEIGHT     |      292 | 2020 |
+| Men’s 61kg  | 12            | PER                   | Marcos Antonio ROJAS CONCHA   | WEIGHT     |      240 | 2020 |
+| Men’s 61kg  | 6             | ITA                   | Davide RUIU                   | WEIGHT     |      286 | 2020 |
+| Men’s 61kg  | 3             | KAZ                   | Igor SON                      | WEIGHT     |      294 | 2020 |
+| Men’s 61kg  | 9             | GER                   | Simon Josef BRANDHUBER        | WEIGHT     |      268 | 2020 |
+| Men’s 61kg  | 2             | INA                   | Eko Yuli IRAWAN               | WEIGHT     |      302 | 2020 |
+| Men’s 61kg  | 7             | GEO                   | Shota MISHVELIDZE             | WEIGHT     |      285 | 2020 |
+| Men’s 61kg  | 8             | DOM                   | Luis Alberto GARCIA BRITO     | WEIGHT     |      274 | 2020 |
+| Men’s 61kg  | 11            | MAD                   | Eric Herman ANDRIANTSITOHAINA | WEIGHT     |      264 | 2020 |
+| Men’s 61kg  | DNF           | TPE                   | Chan-Hung KAO                 | IRM        |       NA | 2020 |
+
+Displaying records 1 - 10
+
+</div>
 
 To begin the cleaning process, I created a new table with the best
 performances by each athlete. (This may be an issue, as it might
