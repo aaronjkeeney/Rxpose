@@ -215,8 +215,8 @@ ALTER TABLE weightlifting_results
 ``` sql
 UPDATE weightlifting_results
   SET sex = CASE 
-    WHEN (event_title LIKE '%women%') THEN 'Women'
-    ELSE 'Men' END
+    WHEN (event_title LIKE '%women%') THEN 'F'
+    ELSE 'M' END
 ```
 
 ``` sql
@@ -229,16 +229,16 @@ LIMIT 10
 
 | event_title | rank_position | country_3_letter_code | athlete_full_name             | value_type | total_kg | year | sex | weight_class_kg |
 |:------------|:--------------|:----------------------|:------------------------------|:-----------|---------:|-----:|:----|----------------:|
-| Men’s 61kg  | 4             | JPN                   | Yoichi ITOKAZU                | WEIGHT     |      292 | 2020 | Men |               0 |
-| Men’s 61kg  | 12            | PER                   | Marcos Antonio ROJAS CONCHA   | WEIGHT     |      240 | 2020 | Men |               0 |
-| Men’s 61kg  | 6             | ITA                   | Davide RUIU                   | WEIGHT     |      286 | 2020 | Men |               0 |
-| Men’s 61kg  | 3             | KAZ                   | Igor SON                      | WEIGHT     |      294 | 2020 | Men |               0 |
-| Men’s 61kg  | 9             | GER                   | Simon Josef BRANDHUBER        | WEIGHT     |      268 | 2020 | Men |               0 |
-| Men’s 61kg  | 2             | INA                   | Eko Yuli IRAWAN               | WEIGHT     |      302 | 2020 | Men |               0 |
-| Men’s 61kg  | 7             | GEO                   | Shota MISHVELIDZE             | WEIGHT     |      285 | 2020 | Men |               0 |
-| Men’s 61kg  | 8             | DOM                   | Luis Alberto GARCIA BRITO     | WEIGHT     |      274 | 2020 | Men |               0 |
-| Men’s 61kg  | 11            | MAD                   | Eric Herman ANDRIANTSITOHAINA | WEIGHT     |      264 | 2020 | Men |               0 |
-| Men’s 61kg  | DNF           | TPE                   | Chan-Hung KAO                 | IRM        |       NA | 2020 | Men |               0 |
+| Men’s 61kg  | 4             | JPN                   | Yoichi ITOKAZU                | WEIGHT     |      292 | 2020 | M   |               0 |
+| Men’s 61kg  | 12            | PER                   | Marcos Antonio ROJAS CONCHA   | WEIGHT     |      240 | 2020 | M   |               0 |
+| Men’s 61kg  | 6             | ITA                   | Davide RUIU                   | WEIGHT     |      286 | 2020 | M   |               0 |
+| Men’s 61kg  | 3             | KAZ                   | Igor SON                      | WEIGHT     |      294 | 2020 | M   |               0 |
+| Men’s 61kg  | 9             | GER                   | Simon Josef BRANDHUBER        | WEIGHT     |      268 | 2020 | M   |               0 |
+| Men’s 61kg  | 2             | INA                   | Eko Yuli IRAWAN               | WEIGHT     |      302 | 2020 | M   |               0 |
+| Men’s 61kg  | 7             | GEO                   | Shota MISHVELIDZE             | WEIGHT     |      285 | 2020 | M   |               0 |
+| Men’s 61kg  | 8             | DOM                   | Luis Alberto GARCIA BRITO     | WEIGHT     |      274 | 2020 | M   |               0 |
+| Men’s 61kg  | 11            | MAD                   | Eric Herman ANDRIANTSITOHAINA | WEIGHT     |      264 | 2020 | M   |               0 |
+| Men’s 61kg  | DNF           | TPE                   | Chan-Hung KAO                 | IRM        |       NA | 2020 | M   |               0 |
 
 Displaying records 1 - 10
 
@@ -251,25 +251,68 @@ FROM weightlifting_results
 
 <div class="knitsql-table">
 
-| event_title   | sex   | weight_class_kg |
-|:--------------|:------|----------------:|
-| Men’s 61kg    | Men   |               0 |
-| Women’s 55kg  | Women |               0 |
-| Men’s 67kg    | Men   |               0 |
-| Men’s 81kg    | Men   |               0 |
-| Women’s +87kg | Women |               0 |
-| Women’s 87kg  | Women |               0 |
-| Men’s +109kg  | Men   |               0 |
-| Women’s 59kg  | Women |               0 |
-| Women’s 64kg  | Women |               0 |
-| Women’s 49kg  | Women |               0 |
+| event_title   | sex | weight_class_kg |
+|:--------------|:----|----------------:|
+| Men’s 61kg    | M   |               0 |
+| Women’s 55kg  | F   |               0 |
+| Men’s 67kg    | M   |               0 |
+| Men’s 81kg    | M   |               0 |
+| Women’s +87kg | F   |               0 |
+| Women’s 87kg  | F   |               0 |
+| Men’s +109kg  | M   |               0 |
+| Women’s 59kg  | F   |               0 |
+| Women’s 64kg  | F   |               0 |
+| Women’s 49kg  | F   |               0 |
 
 Displaying records 1 - 10
 
 </div>
 
-Next, we need to use REGEX to extract the correct numeric portions of
-event_title for weight_class_kg.
+#### Sinclair considerations
+
+Sinclair calculations are not perfect, as different weight classes are
+essentially playing different games. For example, the goal of a
+superheavyweight lifter is to get as big and strong as possible to lift
+maximum weight, while lighter lifters need to get as big and strong as
+possible within a specified boundary. Obviously, different body types
+will self-select into their most competitive classes over the course of
+time. For this study, the maximum allowable weight for each category
+will be used. For non-superheavy weight athletes, this approximation is
+very good, as it is in their best interest to be as heavy (read
+muscular, strong) as possible while remaining in their category. The
+Sinclair method includes a “maximum weight” that is used for these
+corrections, and that is the bodyweight used in this study for all
+supers. While this may lower the Sinclair totals for superheavyweight
+athletes, since this study is not comparing individual lifters, this is
+an acceptable apporoximation. As a second approximation, the calculated
+values for the current Olympic cycle will be used. This will greatly
+simplify calcuations, and it will allow modern scaling of historical
+athletes while crediting them with their bodyweight at the time.
+
+We need to use REGEX to extract the correct numeric portions of
+event_title for weight_class_kg. As mentioned above superheavyweights
+will be credited with the maximum weight. SQLITE DOES NOT SUPPORT REGEX,
+SO I MIGHT NEED TO EXPLORE BIGRQUERY OR ANOTHER OPTION.
+
+``` sql
+UPDATE weightlifting_results
+  SET weight_class_kg = 
+    CASE 
+      WHEN (sex = 'M' AND event_title LIKE '%+%') THEN 1000
+      WHEN (sex = 'M' AND event_title LIKE '%super%') THEN 1000
+      WHEN (sex = 'F' AND event_title LIKE '%+%') THEN 800
+      WHEN (sex = 'F' AND event_title LIKE '%super%') THEN 800
+      ELSE 500
+  END
+     
+--  (REGEXP(([\d.+])+(?=kg)) should be the correct REGEX expression
+-- need both "super" and "+" to be accounted for
+-- [WHEN (event_title LIKE '%+%') THEN 1000 ELSE (1)]
+-- couldn't get the OR function to work inside LIKE function
+        
+```
+
+## This was method number 1–still figuring the best way to proceed
 
 To begin the cleaning process, I created a new table with the best
 performances by each athlete. (This may be an issue, as it might
