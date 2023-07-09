@@ -1,7 +1,7 @@
 RXposé
 ================
 Aaron
-2023-07-08
+2023-07-09
 
 ## Rxposé: An Analysis of Performance-Enhancing Drug Use in the Sport of Weightlifting
 
@@ -141,6 +141,7 @@ extracts and casts the competition year and the weight lifted as more
 usable data types.
 
 ``` sql
+CREATE TABLE IF NOT EXISTS weightlifting_results AS
 SELECT event_title, rank_position, country_3_letter_code, athlete_full_name,
   value_type,
   CAST(value_unit AS decimal) AS total_kg,
@@ -159,24 +160,116 @@ WHERE
 -- CAST(SUBSTR(slug_game, 4) AS INT) >1972 for use in BigQuery
 ```
 
+At this point, we need to clean the disastrous formatting that is the
+event_title column. The strings are not consistent, and we need to
+extract a usable number from them. Weight classes are determined by the
+maximum allowable weight in each category, so we will will need to
+extract the largest number present in each string. Usually, there is
+only one number, but this column sometimes gives a range of maximum and
+minimum weights when we only want the larger value. From the table
+below, we can see that there are even some misprints in the numbers
+themselves (e.g. “825” kg should be “82.5”)
+
+``` sql
+SELECT DISTINCT event_title
+FROM weightlifting_results
+```
+
 <div class="knitsql-table">
 
-| event_title | rank_position | country_3_letter_code | athlete_full_name             | value_type | total_kg | year |
-|:------------|:--------------|:----------------------|:------------------------------|:-----------|---------:|-----:|
-| Men’s 61kg  | 4             | JPN                   | Yoichi ITOKAZU                | WEIGHT     |      292 | 2020 |
-| Men’s 61kg  | 12            | PER                   | Marcos Antonio ROJAS CONCHA   | WEIGHT     |      240 | 2020 |
-| Men’s 61kg  | 6             | ITA                   | Davide RUIU                   | WEIGHT     |      286 | 2020 |
-| Men’s 61kg  | 3             | KAZ                   | Igor SON                      | WEIGHT     |      294 | 2020 |
-| Men’s 61kg  | 9             | GER                   | Simon Josef BRANDHUBER        | WEIGHT     |      268 | 2020 |
-| Men’s 61kg  | 2             | INA                   | Eko Yuli IRAWAN               | WEIGHT     |      302 | 2020 |
-| Men’s 61kg  | 7             | GEO                   | Shota MISHVELIDZE             | WEIGHT     |      285 | 2020 |
-| Men’s 61kg  | 8             | DOM                   | Luis Alberto GARCIA BRITO     | WEIGHT     |      274 | 2020 |
-| Men’s 61kg  | 11            | MAD                   | Eric Herman ANDRIANTSITOHAINA | WEIGHT     |      264 | 2020 |
-| Men’s 61kg  | DNF           | TPE                   | Chan-Hung KAO                 | IRM        |       NA | 2020 |
+| event_title   |
+|:--------------|
+| Men’s 61kg    |
+| Women’s 55kg  |
+| Men’s 67kg    |
+| Men’s 81kg    |
+| Women’s +87kg |
+| Women’s 87kg  |
+| Men’s +109kg  |
+| Women’s 59kg  |
+| Women’s 64kg  |
+| Women’s 49kg  |
 
 Displaying records 1 - 10
 
 </div>
+
+#### Separating Sex and Weight Class
+
+First, we will add columns to designate men’s and women’s events, as
+well as for weightclass.
+
+``` sql
+ALTER TABLE weightlifting_results 
+  ADD sex NOT NULL default 'Men'
+```
+
+Note: this is not to say that men’s sports are the default, but it is
+easier to use REGEX to select for the string “women” rather than “men.”
+
+``` sql
+ALTER TABLE weightlifting_results 
+  ADD weight_class_kg NOT NULL default 0
+```
+
+``` sql
+UPDATE weightlifting_results
+  SET sex = CASE 
+    WHEN (event_title LIKE '%women%') THEN 'Women'
+    ELSE 'Men' END
+```
+
+``` sql
+SELECT *
+FROM weightlifting_results
+LIMIT 10
+```
+
+<div class="knitsql-table">
+
+| event_title | rank_position | country_3_letter_code | athlete_full_name             | value_type | total_kg | year | sex | weight_class_kg |
+|:------------|:--------------|:----------------------|:------------------------------|:-----------|---------:|-----:|:----|----------------:|
+| Men’s 61kg  | 4             | JPN                   | Yoichi ITOKAZU                | WEIGHT     |      292 | 2020 | Men |               0 |
+| Men’s 61kg  | 12            | PER                   | Marcos Antonio ROJAS CONCHA   | WEIGHT     |      240 | 2020 | Men |               0 |
+| Men’s 61kg  | 6             | ITA                   | Davide RUIU                   | WEIGHT     |      286 | 2020 | Men |               0 |
+| Men’s 61kg  | 3             | KAZ                   | Igor SON                      | WEIGHT     |      294 | 2020 | Men |               0 |
+| Men’s 61kg  | 9             | GER                   | Simon Josef BRANDHUBER        | WEIGHT     |      268 | 2020 | Men |               0 |
+| Men’s 61kg  | 2             | INA                   | Eko Yuli IRAWAN               | WEIGHT     |      302 | 2020 | Men |               0 |
+| Men’s 61kg  | 7             | GEO                   | Shota MISHVELIDZE             | WEIGHT     |      285 | 2020 | Men |               0 |
+| Men’s 61kg  | 8             | DOM                   | Luis Alberto GARCIA BRITO     | WEIGHT     |      274 | 2020 | Men |               0 |
+| Men’s 61kg  | 11            | MAD                   | Eric Herman ANDRIANTSITOHAINA | WEIGHT     |      264 | 2020 | Men |               0 |
+| Men’s 61kg  | DNF           | TPE                   | Chan-Hung KAO                 | IRM        |       NA | 2020 | Men |               0 |
+
+Displaying records 1 - 10
+
+</div>
+
+``` sql
+SELECT DISTINCT event_title, sex, weight_class_kg
+FROM weightlifting_results
+```
+
+<div class="knitsql-table">
+
+| event_title   | sex   | weight_class_kg |
+|:--------------|:------|----------------:|
+| Men’s 61kg    | Men   |               0 |
+| Women’s 55kg  | Women |               0 |
+| Men’s 67kg    | Men   |               0 |
+| Men’s 81kg    | Men   |               0 |
+| Women’s +87kg | Women |               0 |
+| Women’s 87kg  | Women |               0 |
+| Men’s +109kg  | Men   |               0 |
+| Women’s 59kg  | Women |               0 |
+| Women’s 64kg  | Women |               0 |
+| Women’s 49kg  | Women |               0 |
+
+Displaying records 1 - 10
+
+</div>
+
+Next, we need to use REGEX to extract the correct numeric portions of
+event_title for weight_class_kg.
 
 To begin the cleaning process, I created a new table with the best
 performances by each athlete. (This may be an issue, as it might

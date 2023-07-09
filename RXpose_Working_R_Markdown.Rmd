@@ -65,6 +65,7 @@ First, I sorted data in BigQuery, as it was much easier to visualize there. Only
 Below is the code that was run in SQLite within the markdown file. This filters for only weightlifting results from the correct years, and it extracts and casts the competition year and the weight lifted as more usable data types.
 
 ```{sql connection=con}
+CREATE TABLE IF NOT EXISTS weightlifting_results AS
 SELECT event_title, rank_position, country_3_letter_code, athlete_full_name,
   value_type,
   CAST(value_unit AS decimal) AS total_kg,
@@ -82,6 +83,52 @@ WHERE
 -- Works here, just not in BigQuery
 -- CAST(SUBSTR(slug_game, 4) AS INT) >1972 for use in BigQuery
 ```
+
+At this point, we need to clean the disastrous formatting that is the event_title column. The strings are not consistent, and we need to extract a usable number from them. Weight classes are determined by the maximum allowable weight in each category, so we will will need to extract the largest number present in each string. Usually, there is only one number, but this column sometimes gives a range of maximum and minimum weights when we only want the larger value. From the table below, we can see that there are even some misprints in the numbers themselves (e.g. "825" kg should be "82.5")
+```{sql connection=con}
+SELECT DISTINCT event_title
+FROM weightlifting_results
+
+```
+#### Separating Sex and Weight Class
+First, we will add columns to designate men's and women's events, as well as for weightclass.
+
+
+```{sql connection=con}
+ALTER TABLE weightlifting_results 
+  ADD sex NOT NULL default 'Men'
+```
+Note: this is not to say that men's sports are the default, but it is easier to use REGEX to select for the string "women" rather than "men."
+
+
+```{sql connection=con}
+ALTER TABLE weightlifting_results 
+  ADD weight_class_kg NOT NULL default 0
+```
+
+
+```{sql connection=con}
+UPDATE weightlifting_results
+  SET sex = CASE 
+    WHEN (event_title LIKE '%women%') THEN 'Women'
+    ELSE 'Men' END
+
+```
+
+```{sql connection=con}
+SELECT *
+FROM weightlifting_results
+LIMIT 10
+
+```
+
+```{sql connection=con}
+SELECT DISTINCT event_title, sex, weight_class_kg
+FROM weightlifting_results
+```
+Next, we need to use REGEX to extract the correct numeric portions of event_title for weight_class_kg.
+
+
 
 To begin the cleaning process, I created a new table with the best performances by each athlete. (This may be an issue, as it might eliminate performances of athletes that rank better by Sinclair if they moved up a category and underperformed.)
 ```{r}
