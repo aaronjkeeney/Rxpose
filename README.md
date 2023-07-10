@@ -1,7 +1,7 @@
 RXposé
 ================
 Aaron
-2023-07-09
+2023-07-10
 
 ## Rxposé: An Analysis of Performance-Enhancing Drug Use in the Sport of Weightlifting
 
@@ -68,6 +68,10 @@ While this will select for the highest-performing athletes, the Olympics
 are highly visible and widely regarded. It makes sense from a public
 perception standpoint to focus here.
 
+First, the data is loaded into a SQL databsae using RSQLite. There are
+limitaions with this package, but it is a good opportunity to practice
+queries.
+
 ``` r
 ## Packages for this analysis
 library(tidyverse)
@@ -98,6 +102,7 @@ library(dbplyr)
     ##     ident, sql
 
 ``` r
+library(stringr)
 getwd()
 ```
 
@@ -127,9 +132,8 @@ dbWriteTable(con,
              overwrite = TRUE)
 ```
 
-First, I sorted data in BigQuery, as it was much easier to visualize
-there. Only weightlifting data was extracted, and only from 1976 and
-later. This is due to two reasons. First, there was a [rule
+Only weightlifting data was extracted for analyis, and only from 1976
+and later. This is due to two reasons. First, there was a [rule
 shift](https://en.wikipedia.org/wiki/Clean_and_press) after 1972 that
 greatly affected the total weight lifted. Second, anabolic steroids were
 not banned until 1975.
@@ -138,7 +142,8 @@ not banned until 1975.
 Below is the code that was run in SQLite within the markdown file. This
 filters for only weightlifting results from the correct years, and it
 extracts and casts the competition year and the weight lifted as more
-usable data types.
+usable data types. It also removes any null or 0 values from the
+total_kg column, as those values will not be useful for comparison.
 
 ``` sql
 CREATE TABLE IF NOT EXISTS weightlifting_results AS
@@ -151,7 +156,11 @@ FROM
 WHERE
   discipline_title = "Weightlifting" 
   AND
-  value_type IS NOT NULL 
+  value_type IS NOT NULL
+  AND
+  total_kg IS NOT NULL
+  AND
+  total_kg >0
   AND
   year > 1972
 
@@ -159,40 +168,6 @@ WHERE
 -- Works here, just not in BigQuery
 -- CAST(SUBSTR(slug_game, 4) AS INT) >1972 for use in BigQuery
 ```
-
-At this point, we need to clean the disastrous formatting that is the
-event_title column. The strings are not consistent, and we need to
-extract a usable number from them. Weight classes are determined by the
-maximum allowable weight in each category, so we will will need to
-extract the largest number present in each string. Usually, there is
-only one number, but this column sometimes gives a range of maximum and
-minimum weights when we only want the larger value. From the table
-below, we can see that there are even some misprints in the numbers
-themselves (e.g. “825” kg should be “82.5”)
-
-``` sql
-SELECT DISTINCT event_title
-FROM weightlifting_results
-```
-
-<div class="knitsql-table">
-
-| event_title   |
-|:--------------|
-| Men’s 61kg    |
-| Women’s 55kg  |
-| Men’s 67kg    |
-| Men’s 81kg    |
-| Women’s +87kg |
-| Women’s 87kg  |
-| Men’s +109kg  |
-| Women’s 59kg  |
-| Women’s 64kg  |
-| Women’s 49kg  |
-
-Displaying records 1 - 10
-
-</div>
 
 #### Separating Sex and Weight Class
 
@@ -208,11 +183,6 @@ Note: this is not to say that men’s sports are the default, but it is
 easier to use REGEX to select for the string “women” rather than “men.”
 
 ``` sql
-ALTER TABLE weightlifting_results 
-  ADD weight_class_kg NOT NULL default 0
-```
-
-``` sql
 UPDATE weightlifting_results
   SET sex = CASE 
     WHEN (event_title LIKE '%women%') THEN 'F'
@@ -220,49 +190,88 @@ UPDATE weightlifting_results
 ```
 
 ``` sql
-SELECT *
+-- just a check for the sex column
+SELECT DISTINCT sex, country_3_letter_code 
 FROM weightlifting_results
-LIMIT 10
+LIMIT 20
 ```
 
-<div class="knitsql-table">
+At this point, we need to clean the disastrous formatting that is the
+event_title column. The strings are not consistent, and we need to
+extract a usable number from them. Weight classes are determined by the
+maximum allowable weight in each category, so we will will need to
+extract the largest number present in each string. Usually, there is
+only one number, but this column sometimes gives a range of maximum and
+minimum weights when we only want the larger value. From the table
+below, we can see that there are even some misprints in the numbers
+themselves (e.g. “825” kg should be “82.5”).
 
-| event_title | rank_position | country_3_letter_code | athlete_full_name             | value_type | total_kg | year | sex | weight_class_kg |
-|:------------|:--------------|:----------------------|:------------------------------|:-----------|---------:|-----:|:----|----------------:|
-| Men’s 61kg  | 4             | JPN                   | Yoichi ITOKAZU                | WEIGHT     |      292 | 2020 | M   |               0 |
-| Men’s 61kg  | 12            | PER                   | Marcos Antonio ROJAS CONCHA   | WEIGHT     |      240 | 2020 | M   |               0 |
-| Men’s 61kg  | 6             | ITA                   | Davide RUIU                   | WEIGHT     |      286 | 2020 | M   |               0 |
-| Men’s 61kg  | 3             | KAZ                   | Igor SON                      | WEIGHT     |      294 | 2020 | M   |               0 |
-| Men’s 61kg  | 9             | GER                   | Simon Josef BRANDHUBER        | WEIGHT     |      268 | 2020 | M   |               0 |
-| Men’s 61kg  | 2             | INA                   | Eko Yuli IRAWAN               | WEIGHT     |      302 | 2020 | M   |               0 |
-| Men’s 61kg  | 7             | GEO                   | Shota MISHVELIDZE             | WEIGHT     |      285 | 2020 | M   |               0 |
-| Men’s 61kg  | 8             | DOM                   | Luis Alberto GARCIA BRITO     | WEIGHT     |      274 | 2020 | M   |               0 |
-| Men’s 61kg  | 11            | MAD                   | Eric Herman ANDRIANTSITOHAINA | WEIGHT     |      264 | 2020 | M   |               0 |
-| Men’s 61kg  | DNF           | TPE                   | Chan-Hung KAO                 | IRM        |       NA | 2020 | M   |               0 |
+This step of cleaning required r, as SQLite does not support REGEX. Data
+were queried, cleaned, then reuploaded to replace the original table.
 
-Displaying records 1 - 10
+## Define weight class so that people who are not familiar with the sport can understand variable names (eg. weight_class_kg means the highest allowable body weight). Find shorter variable name.
 
-</div>
+``` r
+weightlifting_results <- 
+  dbGetQuery(con, "SELECT * FROM weightlifting_results")
+
+
+weightlifting_results_after_regex_extraction <-
+weightlifting_results %>%
+  mutate(weight_class_max_allowable_bodyweight_kg = as.numeric(str_extract(event_title, "([0-9.])+(?=kg)")
+  ))
+
+unique(sort(weightlifting_results_after_regex_extraction$weight_class_max_allowable_bodyweight_kg)) ## check for necessary changes
+```
+
+    ##  [1]  48.0  49.0  52.0  53.0  54.0  55.0  56.0  58.0  59.0  60.0  61.0  62.0
+    ## [13]  63.0  64.0  67.0  67.5  69.0  70.0  75.0  76.0  77.0  81.0  83.0  85.0
+    ## [25]  87.0  90.0  91.0  94.0  99.0 100.0 105.0 108.0 109.0 110.0 825.0
+
+``` r
+## Since 825kg is a nonsensical number in weightlifting, we can universally replace 825 with 82.5.
+
+weightlifting_results_after_regex_extraction[weightlifting_results_after_regex_extraction == 825] <- 82.5
+unique(sort(weightlifting_results_after_regex_extraction$weight_class_max_allowable_bodyweight_kg))
+```
+
+    ##  [1]  48.0  49.0  52.0  53.0  54.0  55.0  56.0  58.0  59.0  60.0  61.0  62.0
+    ## [13]  63.0  64.0  67.0  67.5  69.0  70.0  75.0  76.0  77.0  81.0  82.5  83.0
+    ## [25]  85.0  87.0  90.0  91.0  94.0  99.0 100.0 105.0 108.0 109.0 110.0
+
+This code conflates the weightclasses for the heaviest and
+second-heaviest categoies, but that will be sorted out with SQL. This
+resulting dataframe can be uploaded to our database.
+
+``` r
+dbWriteTable(con, 
+             "weightlifting_results", 
+             weightlifting_results_after_regex_extraction, 
+             overwrite = TRUE)
+```
 
 ``` sql
-SELECT DISTINCT event_title, sex, weight_class_kg
+-- test to make sure the new table exists and has correct data
+SELECT *
 FROM weightlifting_results
+LIMIT
+20
 ```
 
 <div class="knitsql-table">
 
-| event_title   | sex | weight_class_kg |
-|:--------------|:----|----------------:|
-| Men’s 61kg    | M   |               0 |
-| Women’s 55kg  | F   |               0 |
-| Men’s 67kg    | M   |               0 |
-| Men’s 81kg    | M   |               0 |
-| Women’s +87kg | F   |               0 |
-| Women’s 87kg  | F   |               0 |
-| Men’s +109kg  | M   |               0 |
-| Women’s 59kg  | F   |               0 |
-| Women’s 64kg  | F   |               0 |
-| Women’s 49kg  | F   |               0 |
+| event_title | rank_position | country_3_letter_code | athlete_full_name             | value_type | total_kg | year | sex | weight_class_max_allowable_bodyweight_kg |
+|:------------|:--------------|:----------------------|:------------------------------|:-----------|---------:|-----:|:----|-----------------------------------------:|
+| Men’s 61kg  | 4             | JPN                   | Yoichi ITOKAZU                | WEIGHT     |      292 | 2020 | M   |                                       61 |
+| Men’s 61kg  | 12            | PER                   | Marcos Antonio ROJAS CONCHA   | WEIGHT     |      240 | 2020 | M   |                                       61 |
+| Men’s 61kg  | 6             | ITA                   | Davide RUIU                   | WEIGHT     |      286 | 2020 | M   |                                       61 |
+| Men’s 61kg  | 3             | KAZ                   | Igor SON                      | WEIGHT     |      294 | 2020 | M   |                                       61 |
+| Men’s 61kg  | 9             | GER                   | Simon Josef BRANDHUBER        | WEIGHT     |      268 | 2020 | M   |                                       61 |
+| Men’s 61kg  | 2             | INA                   | Eko Yuli IRAWAN               | WEIGHT     |      302 | 2020 | M   |                                       61 |
+| Men’s 61kg  | 7             | GEO                   | Shota MISHVELIDZE             | WEIGHT     |      285 | 2020 | M   |                                       61 |
+| Men’s 61kg  | 8             | DOM                   | Luis Alberto GARCIA BRITO     | WEIGHT     |      274 | 2020 | M   |                                       61 |
+| Men’s 61kg  | 11            | MAD                   | Eric Herman ANDRIANTSITOHAINA | WEIGHT     |      264 | 2020 | M   |                                       61 |
+| Men’s 61kg  | 10            | PNG                   | Morea BARU                    | WEIGHT     |      265 | 2020 | M   |                                       61 |
 
 Displaying records 1 - 10
 
@@ -289,28 +298,53 @@ values for the current Olympic cycle will be used. This will greatly
 simplify calcuations, and it will allow modern scaling of historical
 athletes while crediting them with their bodyweight at the time.
 
-We need to use REGEX to extract the correct numeric portions of
-event_title for weight_class_kg. As mentioned above superheavyweights
-will be credited with the maximum weight. SQLITE DOES NOT SUPPORT REGEX,
-SO I MIGHT NEED TO EXPLORE BIGRQUERY OR ANOTHER OPTION.
+For this analysis, credited bodyweights for male and female
+superheavyweights were taken from the [IWF
+website](https://iwf.sport/wp-content/uploads/downloads/2023/05/2021-Sinclair_Coefficients.pdf).
 
 ``` sql
 UPDATE weightlifting_results
-  SET weight_class_kg = 
+  SET weight_class_max_allowable_bodyweight_kg = 
     CASE 
-      WHEN (sex = 'M' AND event_title LIKE '%+%') THEN 1000
-      WHEN (sex = 'M' AND event_title LIKE '%super%') THEN 1000
-      WHEN (sex = 'F' AND event_title LIKE '%+%') THEN 800
-      WHEN (sex = 'F' AND event_title LIKE '%super%') THEN 800
-      ELSE 500
+      WHEN (sex = 'M' AND event_title LIKE '%+%') THEN 193.609
+      WHEN (sex = 'M' AND event_title LIKE '%super%') THEN 193.609
+      WHEN (sex = 'F' AND event_title LIKE '%+%') THEN 153.757
+      WHEN (sex = 'F' AND event_title LIKE '%super%') THEN 153.757
+      ELSE weight_class_max_allowable_bodyweight_kg
   END
-     
+  
+-- 1000 and 800 are placeholders while the event_title column is cleaned   
 --  (REGEXP(([\d.+])+(?=kg)) should be the correct REGEX expression
 -- need both "super" and "+" to be accounted for
 -- [WHEN (event_title LIKE '%+%') THEN 1000 ELSE (1)]
 -- couldn't get the OR function to work inside LIKE function
         
 ```
+
+``` sql
+SELECT DISTINCT weight_class_max_allowable_bodyweight_kg, event_title
+FROM weightlifting_results
+ORDER BY weight_class_max_allowable_bodyweight_kg DESC
+```
+
+<div class="knitsql-table">
+
+| weight_class_max_allowable_bodyweight_kg | event_title                 |
+|-----------------------------------------:|:----------------------------|
+|                                  193.609 | Men’s +109kg                |
+|                                  193.609 | +105kg men                  |
+|                                  193.609 | 105kg superheavyweight men  |
+|                                  193.609 | 108kg super heavyweight men |
+|                                  193.609 | 110kg super heavyweight men |
+|                                  153.757 | Women’s +87kg               |
+|                                  153.757 | +75kg women                 |
+|                                  110.000 | 100 110kg heavyweight men   |
+|                                  110.000 | 91 110kg heavyweight men    |
+|                                  109.000 | Men’s 109kg                 |
+
+Displaying records 1 - 10
+
+</div>
 
 ## This was method number 1–still figuring the best way to proceed
 
@@ -366,3 +400,7 @@ The larger problem is that of weight classes. Labelled “event_title” in
 this dataset, there is little to no consistency in how these data were
 entered. It is necessary to have a consistent format, as weight class
 and year will determine Sinclair calculations.
+
+``` sql
+DROP TABLE IF EXISTS weightlifting_results
+```
