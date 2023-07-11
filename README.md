@@ -1,7 +1,7 @@
 RXposé
 ================
 Aaron
-2023-07-10
+2023-07-11
 
 ## Rxposé: An Analysis of Performance-Enhancing Drug Use in the Sport of Weightlifting
 
@@ -10,7 +10,7 @@ skills, as well as learning how to link a database and run multiple
 languages within an Rmarkdown. There are places where it may be simpler
 to use only R, but it is a valuable learning experience, regardless.
 
-### Background
+## Background
 
 Weightlifting has been one of the sports with the highest (recorded)
 prevalence of drug use. Rumors are always circling, and considerable
@@ -345,6 +345,69 @@ ORDER BY weight_class_max_allowable_bodyweight_kg DESC
 Displaying records 1 - 10
 
 </div>
+
+#### Adding Sinclair to the table
+
+Finally, we get to add the primary value for analysis to this table.
+
+``` sql
+ALTER TABLE weightlifting_results 
+  ADD sinclair NOT NULL default 0
+```
+
+``` sql
+UPDATE weightlifting_results
+  SET sinclair = CASE
+    WHEN (sex = 'F')
+    THEN  total_kg* POWER(10, 0.787004341*POWER(LOG10(weight_class_max_allowable_bodyweight_kg/153.757),2))
+    ELSE  total_kg* POWER(10, 0.722762521*POWER(LOG10(weight_class_max_allowable_bodyweight_kg/193.609),2))
+    END
+```
+
+``` sql
+SELECT DISTINCT weight_class_max_allowable_bodyweight_kg, sinclair, athlete_full_name
+FROM weightlifting_results
+WHERE sex = 'F'
+ORDER BY sinclair DESC
+LIMIT 30
+```
+
+<div class="knitsql-table">
+
+| weight_class_max_allowable_bodyweight_kg | sinclair | athlete_full_name |
+|-----------------------------------------:|---------:|:------------------|
+|                                   63.000 | 343.9311 | Wei DENG          |
+|                                   69.000 | 342.4793 | Chunhong LIU      |
+|                                   58.000 | 340.4270 | Xueying LI        |
+|                                   48.000 | 333.7315 | Nurcan TAYLAN     |
+|                                  153.757 | 333.0000 | Lulu ZHOU         |
+|                                   58.000 | 332.1239 | Sukanya SRISURAT  |
+|                                  153.757 | 332.0000 | Tatiana KASHIRINA |
+|                                   53.000 | 331.5665 | Xia YANG          |
+|                                   58.000 | 328.6643 | Yanqing CHEN      |
+|                                   49.000 | 328.3477 | Zhihui HOU        |
+
+Displaying records 1 - 10
+
+</div>
+
+While not the correct Sincalir for each individual athlete, this will
+serve well enough for the purposes of this study. This list is
+absolutley not intended to rank athletes’ performances. I would like to
+apologize especially to Lasha Talakhadze, who as the best
+superheavyweight in history appears at \#28 on this ranking. Using
+historical Sinclair calculations, he appears at \#2 behind Naim
+Süleymanoglu, but I still have faith that Lasha will hit the legendary
+500kg total before he retires.
+
+It is interesting to note that two female superheavyweights appear in
+the top 10 in this ranking. I will not analyze that too much here, but
+there is likely a huge amount of influence on this calcultion by
+representation in the sport. The number of male athletes (historically)
+is far greater, and it would be wonderful to see how more female
+representation would change the sport.
+
+## Analysis
 
 ## This was method number 1–still figuring the best way to proceed
 

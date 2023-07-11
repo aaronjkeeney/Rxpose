@@ -13,7 +13,7 @@ knitr::opts_chunk$set(echo = TRUE)
 ## Rxposé: An Analysis of Performance-Enhancing Drug Use in the Sport of Weightlifting
 Note : This portfolio project presents an opportunity to practice SQL skills, as well as learning how to link a database and run multiple languages within an Rmarkdown. There are places where it may be simpler to use only R, but it is a valuable learning experience, regardless.
 
-### Background
+## Background
 Weightlifting has been one of the sports with the highest (recorded) prevalence of drug use. Rumors are always circling, and considerable evidence has shown that covert as well as state-sponsored doping rings are commonplace. Many people believe that the number of "clean" athletes at the elite level is extremely low, possibly as low as zero.
 
 While the analysis of the effectiveness of individual tests is fascinating and important, the initial scope of this project is much broader. The question at the center of this study is: 
@@ -188,9 +188,45 @@ SELECT DISTINCT weight_class_max_allowable_bodyweight_kg, event_title
 FROM weightlifting_results
 ORDER BY weight_class_max_allowable_bodyweight_kg DESC
 
+```
 
+#### Adding Sinclair to the table
+Finally, we get to add the primary value for analysis to this table.
+
+```{sql connection=con}
+ALTER TABLE weightlifting_results 
+  ADD sinclair NOT NULL default 0
+```
+
+```{sql connection=con}
+UPDATE weightlifting_results
+  SET sinclair = CASE
+    WHEN (sex = 'F')
+    THEN  total_kg* POWER(10, 0.787004341*POWER(LOG10(weight_class_max_allowable_bodyweight_kg/153.757),2))
+    ELSE  total_kg* POWER(10, 0.722762521*POWER(LOG10(weight_class_max_allowable_bodyweight_kg/193.609),2))
+    END
 
 ```
+
+```{sql connection=con}
+SELECT DISTINCT weight_class_max_allowable_bodyweight_kg, sinclair, athlete_full_name
+FROM weightlifting_results
+WHERE sex = 'F'
+ORDER BY sinclair DESC
+LIMIT 30
+
+```
+While not the correct Sincalir for each individual athlete, this will serve well enough for the purposes of this study. This list is absolutley not intended to rank athletes' performances. I would like to apologize especially to Lasha Talakhadze, who as the best superheavyweight in history appears at #28 on this ranking. Using historical Sinclair calculations, he appears at #2 behind Naim Süleymanoglu, but I still have faith that Lasha will hit the legendary 500kg total before he retires.
+
+It is interesting to note that two female superheavyweights appear in the top 10 in this ranking. I will not analyze that too much here, but there is likely a huge amount of influence on this calcultion by representation in the sport. The number of male athletes (historically) is far greater, and it would be wonderful to see how more female representation would change the sport.
+
+
+## Analysis
+
+
+
+
+
 
 
 
