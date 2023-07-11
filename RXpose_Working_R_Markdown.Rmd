@@ -50,7 +50,6 @@ library(tidyverse)
 library(RSQLite)
 library(DBI)
 library(dbplyr)
-library(stringr)
 getwd()
 setwd("~/Documents/Data Analytics Projects/Rxpose/Kaggle Olympics Data")
 olympics_data_raw <- read_csv("olympic_results.csv")
@@ -220,6 +219,29 @@ While not the correct Sincalir for each individual athlete, this will serve well
 
 It is interesting to note that two female superheavyweights appear in the top 10 in this ranking. I will not analyze that too much here, but there is likely a huge amount of influence on this calcultion by representation in the sport. The number of male athletes (historically) is far greater, and it would be wonderful to see how more female representation would change the sport.
 
+As the last step in data cleaning and preparation, we need to add a table of lifters who have served drug bans. A list (if not a complete one) exists at [this link](https://en.wikipedia.org/wiki/Category:Doping_cases_in_weightlifting). After [stripping the html](https://www.striphtml.com/), I added the list to my [spreadsheet](https://docs.google.com/spreadsheets/d/1vWlYv58PvmJE1VBEh5-dOVboG6D-HxOqWq_zTylOWC0/edit?usp=sharing).
+
+Creating the new table.
+```{r}
+weightlifters_with_doping_violations_raw <- read_csv("weightlifters_with_doping_violations.csv")
+str(weightlifters_with_doping_violations_raw)
+```
+This table will also require some in-depth cleaning. The table includes parentheses (left over from the online source), and there are many spellings of names with non-English characters. Matching names and successfully executing a join with the previous table will require REGEX, so this portion of cleaning will necessitate R.
+
+```{r}
+## This code removes the parentheses from the strings in the athelete's names and creates a new column for the cleaned names
+
+weightlifters_with_doping_violations_no_parentheses <-
+weightlifters_with_doping_violations_raw %>%
+    mutate(weightlifters_with_doping_violations_no_parentheses = gsub("\\(.*$","",weightlifters_with_doping_violations_raw$weightlifters_with_doping_violations))
+
+view(weightlifters_with_doping_violations_no_parentheses)
+
+## Note to self on REGEX-- the double backslash is important due to "\" and "(" both being escape operators.
+```
+
+The final step in analysis is to join the table of weightlifters with violations with the table of all lifters to separate the two populations.
+
 
 ## Analysis
 
@@ -232,7 +254,7 @@ It is interesting to note that two female superheavyweights appear in the top 10
 
 
 
-## This was method number 1--still figuring the best way to proceed
+##### This was method number 1--This work was improved upon via other methods, but it will be remain here for reference at least until the first iteration of the project is complete.
 
 To begin the cleaning process, I created a new table with the best performances by each athlete. (This may be an issue, as it might eliminate performances of athletes that rank better by Sinclair if they moved up a category and underperformed.)
 ```{r}

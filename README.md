@@ -102,7 +102,6 @@ library(dbplyr)
     ##     ident, sql
 
 ``` r
-library(stringr)
 getwd()
 ```
 
@@ -407,9 +406,65 @@ representation in the sport. The number of male athletes (historically)
 is far greater, and it would be wonderful to see how more female
 representation would change the sport.
 
+As the last step in data cleaning and preparation, we need to add a
+table of lifters who have served drug bans. A list (if not a complete
+one) exists at [this
+link](https://en.wikipedia.org/wiki/Category:Doping_cases_in_weightlifting).
+After [stripping the html](https://www.striphtml.com/), I added the list
+to my
+[spreadsheet](https://docs.google.com/spreadsheets/d/1vWlYv58PvmJE1VBEh5-dOVboG6D-HxOqWq_zTylOWC0/edit?usp=sharing).
+
+Creating the new table.
+
+``` r
+weightlifters_with_doping_violations_raw <- read_csv("weightlifters_with_doping_violations.csv")
+```
+
+    ## Rows: 189 Columns: 1
+    ## ── Column specification ────────────────────────────────────────────────────────
+    ## Delimiter: ","
+    ## chr (1): weightlifters_with_doping_violations
+    ## 
+    ## ℹ Use `spec()` to retrieve the full column specification for this data.
+    ## ℹ Specify the column types or set `show_col_types = FALSE` to quiet this message.
+
+``` r
+str(weightlifters_with_doping_violations_raw)
+```
+
+    ## spc_tbl_ [189 × 1] (S3: spec_tbl_df/tbl_df/tbl/data.frame)
+    ##  $ weightlifters_with_doping_violations: chr [1:189] "Khadzhimurat Akkaev" "Henadzi Aliashchuk" "Saeid Alihosseini" "Chika Amalaha" ...
+    ##  - attr(*, "spec")=
+    ##   .. cols(
+    ##   ..   weightlifters_with_doping_violations = col_character()
+    ##   .. )
+    ##  - attr(*, "problems")=<externalptr>
+
+This table will also require some in-depth cleaning. The table includes
+parentheses (left over from the online source), and there are many
+spellings of names with non-English characters. Matching names and
+successfully executing a join with the previous table will require
+REGEX, so this portion of cleaning will necessitate R.
+
+``` r
+## This code removes the parentheses from the strings in the athelete's names and creates a new column for the cleaned names
+
+weightlifters_with_doping_violations_no_parentheses <-
+weightlifters_with_doping_violations_raw %>%
+    mutate(weightlifters_with_doping_violations_no_parentheses = gsub("\\(.*$","",weightlifters_with_doping_violations_raw$weightlifters_with_doping_violations))
+
+view(weightlifters_with_doping_violations_no_parentheses)
+
+## Note to self on REGEX-- the double backslash is important due to "\" and "(" both being escape operators.
+```
+
+The final step in analysis is to join the table of weightlifters with
+violations with the table of all lifters to separate the two
+populations.
+
 ## Analysis
 
-## This was method number 1–still figuring the best way to proceed
+##### This was method number 1–This work was improved upon via other methods, but it will be remain here for reference at least until the first iteration of the project is complete.
 
 To begin the cleaning process, I created a new table with the best
 performances by each athlete. (This may be an issue, as it might
