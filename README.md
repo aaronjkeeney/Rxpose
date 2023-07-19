@@ -1,7 +1,7 @@
 RXposé
 ================
 Aaron
-2023-07-11
+2023-07-19
 
 ## Rxposé: An Analysis of Performance-Enhancing Drug Use in the Sport of Weightlifting
 
@@ -32,10 +32,26 @@ increase performance. If the positive-testing athletes (sometimes
 referred to as “popped”) do not outperform the negative-testing
 athletes, the truth of this assumptions falls must be questioned.
 
+A quick primer on the sport of weightlifting: as sports go, it is
+relatively simple. Whoever lifts the most weight wins. Athletes are
+separated by assigned sex (male/female) and weight class. Weight class
+is a way of separating body types, as being larger and having more
+muscle allows people to typically lift more weight. Usually, the
+athletes are split into weight classes that are about 7kg apart. This
+means that all the athletes competing against one another weigh within
+7kg (15 lbs) of each other. This allows broader participation in the
+sport, since it allows people who are not naturally large to compete.
+The standard modern convention is to identify a weight class by the
+maximum allowable bodyweight in that weight class. For example, the M
+102kg category means that any man weighing less than 102kg is eligible
+to compete. (Note: athletes may always compete in a heavier category
+than their bodyweight, but it is almost never advantageous to do so, as
+the other competitors will be larger and stronger.)
+
 In order to compare all athlete, the [Sinclair
 Coefficient](https://iwf.sport/weightlifting_/sinclair-coefficient/)
-will be employed. This will allow us to compare performaces of athletes
-across weight classes and get a better understaning of the influence of
+will be employed. This will allow us to compare performances of athletes
+across weight classes and get a better understanding of the influence of
 drug testing on the sport as a whole.
 
 We should note that the subjectivity of “talent” will always be part of
@@ -43,7 +59,7 @@ this discussion. This conversation is inextricably linked with
 drug-testing, as genetics affect athletic performance, drug response,
 and even our ability to screen for drug use.
 
-Additional topics for study
+Additional topics for potential future study:
 
 - Prevalence of use by country, region, gender, etc.
 
@@ -208,8 +224,6 @@ themselves (e.g. “825” kg should be “82.5”).
 This step of cleaning required r, as SQLite does not support REGEX. Data
 were queried, cleaned, then reuploaded to replace the original table.
 
-## Define weight class so that people who are not familiar with the sport can understand variable names (eg. weight_class_kg means the highest allowable body weight). Find shorter variable name.
-
 ``` r
 weightlifting_results <- 
   dbGetQuery(con, "SELECT * FROM weightlifting_results")
@@ -217,10 +231,10 @@ weightlifting_results <-
 
 weightlifting_results_after_regex_extraction <-
 weightlifting_results %>%
-  mutate(weight_class_max_allowable_bodyweight_kg = as.numeric(str_extract(event_title, "([0-9.])+(?=kg)")
+  mutate(weight_class_kg = as.numeric(str_extract(event_title, "([0-9.])+(?=kg)")
   ))
 
-unique(sort(weightlifting_results_after_regex_extraction$weight_class_max_allowable_bodyweight_kg)) ## check for necessary changes
+unique(sort(weightlifting_results_after_regex_extraction$weight_class_kg)) ## check for necessary changes
 ```
 
     ##  [1]  48.0  49.0  52.0  53.0  54.0  55.0  56.0  58.0  59.0  60.0  61.0  62.0
@@ -231,14 +245,14 @@ unique(sort(weightlifting_results_after_regex_extraction$weight_class_max_allowa
 ## Since 825kg is a nonsensical number in weightlifting, we can universally replace 825 with 82.5.
 
 weightlifting_results_after_regex_extraction[weightlifting_results_after_regex_extraction == 825] <- 82.5
-unique(sort(weightlifting_results_after_regex_extraction$weight_class_max_allowable_bodyweight_kg))
+unique(sort(weightlifting_results_after_regex_extraction$weight_class_kg))
 ```
 
     ##  [1]  48.0  49.0  52.0  53.0  54.0  55.0  56.0  58.0  59.0  60.0  61.0  62.0
     ## [13]  63.0  64.0  67.0  67.5  69.0  70.0  75.0  76.0  77.0  81.0  82.5  83.0
     ## [25]  85.0  87.0  90.0  91.0  94.0  99.0 100.0 105.0 108.0 109.0 110.0
 
-This code conflates the weightclasses for the heaviest and
+This code conflates the weight classes for the heaviest and
 second-heaviest categoies, but that will be sorted out with SQL. This
 resulting dataframe can be uploaded to our database.
 
@@ -259,18 +273,18 @@ LIMIT
 
 <div class="knitsql-table">
 
-| event_title | rank_position | country_3_letter_code | athlete_full_name             | value_type | total_kg | year | sex | weight_class_max_allowable_bodyweight_kg |
-|:------------|:--------------|:----------------------|:------------------------------|:-----------|---------:|-----:|:----|-----------------------------------------:|
-| Men’s 61kg  | 4             | JPN                   | Yoichi ITOKAZU                | WEIGHT     |      292 | 2020 | M   |                                       61 |
-| Men’s 61kg  | 12            | PER                   | Marcos Antonio ROJAS CONCHA   | WEIGHT     |      240 | 2020 | M   |                                       61 |
-| Men’s 61kg  | 6             | ITA                   | Davide RUIU                   | WEIGHT     |      286 | 2020 | M   |                                       61 |
-| Men’s 61kg  | 3             | KAZ                   | Igor SON                      | WEIGHT     |      294 | 2020 | M   |                                       61 |
-| Men’s 61kg  | 9             | GER                   | Simon Josef BRANDHUBER        | WEIGHT     |      268 | 2020 | M   |                                       61 |
-| Men’s 61kg  | 2             | INA                   | Eko Yuli IRAWAN               | WEIGHT     |      302 | 2020 | M   |                                       61 |
-| Men’s 61kg  | 7             | GEO                   | Shota MISHVELIDZE             | WEIGHT     |      285 | 2020 | M   |                                       61 |
-| Men’s 61kg  | 8             | DOM                   | Luis Alberto GARCIA BRITO     | WEIGHT     |      274 | 2020 | M   |                                       61 |
-| Men’s 61kg  | 11            | MAD                   | Eric Herman ANDRIANTSITOHAINA | WEIGHT     |      264 | 2020 | M   |                                       61 |
-| Men’s 61kg  | 10            | PNG                   | Morea BARU                    | WEIGHT     |      265 | 2020 | M   |                                       61 |
+| event_title | rank_position | country_3_letter_code | athlete_full_name             | value_type | total_kg | year | sex | weight_class_kg |
+|:------------|:--------------|:----------------------|:------------------------------|:-----------|---------:|-----:|:----|----------------:|
+| Men’s 61kg  | 4             | JPN                   | Yoichi ITOKAZU                | WEIGHT     |      292 | 2020 | M   |              61 |
+| Men’s 61kg  | 12            | PER                   | Marcos Antonio ROJAS CONCHA   | WEIGHT     |      240 | 2020 | M   |              61 |
+| Men’s 61kg  | 6             | ITA                   | Davide RUIU                   | WEIGHT     |      286 | 2020 | M   |              61 |
+| Men’s 61kg  | 3             | KAZ                   | Igor SON                      | WEIGHT     |      294 | 2020 | M   |              61 |
+| Men’s 61kg  | 9             | GER                   | Simon Josef BRANDHUBER        | WEIGHT     |      268 | 2020 | M   |              61 |
+| Men’s 61kg  | 2             | INA                   | Eko Yuli IRAWAN               | WEIGHT     |      302 | 2020 | M   |              61 |
+| Men’s 61kg  | 7             | GEO                   | Shota MISHVELIDZE             | WEIGHT     |      285 | 2020 | M   |              61 |
+| Men’s 61kg  | 8             | DOM                   | Luis Alberto GARCIA BRITO     | WEIGHT     |      274 | 2020 | M   |              61 |
+| Men’s 61kg  | 11            | MAD                   | Eric Herman ANDRIANTSITOHAINA | WEIGHT     |      264 | 2020 | M   |              61 |
+| Men’s 61kg  | 10            | PNG                   | Morea BARU                    | WEIGHT     |      265 | 2020 | M   |              61 |
 
 Displaying records 1 - 10
 
@@ -303,17 +317,15 @@ website](https://iwf.sport/wp-content/uploads/downloads/2023/05/2021-Sinclair_Co
 
 ``` sql
 UPDATE weightlifting_results
-  SET weight_class_max_allowable_bodyweight_kg = 
+  SET weight_class_kg = 
     CASE 
       WHEN (sex = 'M' AND event_title LIKE '%+%') THEN 193.609
       WHEN (sex = 'M' AND event_title LIKE '%super%') THEN 193.609
       WHEN (sex = 'F' AND event_title LIKE '%+%') THEN 153.757
       WHEN (sex = 'F' AND event_title LIKE '%super%') THEN 153.757
-      ELSE weight_class_max_allowable_bodyweight_kg
+      ELSE weight_class_kg
   END
   
--- 1000 and 800 are placeholders while the event_title column is cleaned   
---  (REGEXP(([\d.+])+(?=kg)) should be the correct REGEX expression
 -- need both "super" and "+" to be accounted for
 -- [WHEN (event_title LIKE '%+%') THEN 1000 ELSE (1)]
 -- couldn't get the OR function to work inside LIKE function
@@ -321,25 +333,25 @@ UPDATE weightlifting_results
 ```
 
 ``` sql
-SELECT DISTINCT weight_class_max_allowable_bodyweight_kg, event_title
+SELECT DISTINCT weight_class_kg, event_title
 FROM weightlifting_results
-ORDER BY weight_class_max_allowable_bodyweight_kg DESC
+ORDER BY weight_class_kg DESC
 ```
 
 <div class="knitsql-table">
 
-| weight_class_max_allowable_bodyweight_kg | event_title                 |
-|-----------------------------------------:|:----------------------------|
-|                                  193.609 | Men’s +109kg                |
-|                                  193.609 | +105kg men                  |
-|                                  193.609 | 105kg superheavyweight men  |
-|                                  193.609 | 108kg super heavyweight men |
-|                                  193.609 | 110kg super heavyweight men |
-|                                  153.757 | Women’s +87kg               |
-|                                  153.757 | +75kg women                 |
-|                                  110.000 | 100 110kg heavyweight men   |
-|                                  110.000 | 91 110kg heavyweight men    |
-|                                  109.000 | Men’s 109kg                 |
+| weight_class_kg | event_title                 |
+|----------------:|:----------------------------|
+|         193.609 | Men’s +109kg                |
+|         193.609 | +105kg men                  |
+|         193.609 | 105kg superheavyweight men  |
+|         193.609 | 108kg super heavyweight men |
+|         193.609 | 110kg super heavyweight men |
+|         153.757 | Women’s +87kg               |
+|         153.757 | +75kg women                 |
+|         110.000 | 100 110kg heavyweight men   |
+|         110.000 | 91 110kg heavyweight men    |
+|         109.000 | Men’s 109kg                 |
 
 Displaying records 1 - 10
 
@@ -358,13 +370,13 @@ ALTER TABLE weightlifting_results
 UPDATE weightlifting_results
   SET sinclair = CASE
     WHEN (sex = 'F')
-    THEN  total_kg* POWER(10, 0.787004341*POWER(LOG10(weight_class_max_allowable_bodyweight_kg/153.757),2))
-    ELSE  total_kg* POWER(10, 0.722762521*POWER(LOG10(weight_class_max_allowable_bodyweight_kg/193.609),2))
+    THEN  total_kg* POWER(10, 0.787004341*POWER(LOG10(weight_class_kg/153.757),2))
+    ELSE  total_kg* POWER(10, 0.722762521*POWER(LOG10(weight_class_kg/193.609),2))
     END
 ```
 
 ``` sql
-SELECT DISTINCT weight_class_max_allowable_bodyweight_kg, sinclair, athlete_full_name
+SELECT DISTINCT weight_class_kg, sinclair, athlete_full_name
 FROM weightlifting_results
 WHERE sex = 'F'
 ORDER BY sinclair DESC
@@ -373,18 +385,18 @@ LIMIT 30
 
 <div class="knitsql-table">
 
-| weight_class_max_allowable_bodyweight_kg | sinclair | athlete_full_name |
-|-----------------------------------------:|---------:|:------------------|
-|                                   63.000 | 343.9311 | Wei DENG          |
-|                                   69.000 | 342.4793 | Chunhong LIU      |
-|                                   58.000 | 340.4270 | Xueying LI        |
-|                                   48.000 | 333.7315 | Nurcan TAYLAN     |
-|                                  153.757 | 333.0000 | Lulu ZHOU         |
-|                                   58.000 | 332.1239 | Sukanya SRISURAT  |
-|                                  153.757 | 332.0000 | Tatiana KASHIRINA |
-|                                   53.000 | 331.5665 | Xia YANG          |
-|                                   58.000 | 328.6643 | Yanqing CHEN      |
-|                                   49.000 | 328.3477 | Zhihui HOU        |
+| weight_class_kg | sinclair | athlete_full_name |
+|----------------:|---------:|:------------------|
+|          63.000 | 343.9311 | Wei DENG          |
+|          69.000 | 342.4793 | Chunhong LIU      |
+|          58.000 | 340.4270 | Xueying LI        |
+|          48.000 | 333.7315 | Nurcan TAYLAN     |
+|         153.757 | 333.0000 | Lulu ZHOU         |
+|          58.000 | 332.1239 | Sukanya SRISURAT  |
+|         153.757 | 332.0000 | Tatiana KASHIRINA |
+|          53.000 | 331.5665 | Xia YANG          |
+|          58.000 | 328.6643 | Yanqing CHEN      |
+|          49.000 | 328.3477 | Zhihui HOU        |
 
 Displaying records 1 - 10
 
@@ -417,6 +429,7 @@ to my
 Creating the new table.
 
 ``` r
+setwd("~/Documents/Data Analytics Projects/Rxpose/Kaggle Olympics Data")
 weightlifters_with_doping_violations_raw <- read_csv("weightlifters_with_doping_violations.csv")
 ```
 
@@ -447,20 +460,75 @@ successfully executing a join with the previous table will require
 REGEX, so this portion of cleaning will necessitate R.
 
 ``` r
-## This code removes the parentheses from the strings in the athelete's names and creates a new column for the cleaned names
+## This code removes the parentheses from the strings in the athlete's names and creates a new column for the cleaned names
 
 weightlifters_with_doping_violations_no_parentheses <-
 weightlifters_with_doping_violations_raw %>%
     mutate(weightlifters_with_doping_violations_no_parentheses = gsub("\\(.*$","",weightlifters_with_doping_violations_raw$weightlifters_with_doping_violations))
-
-view(weightlifters_with_doping_violations_no_parentheses)
-
 ## Note to self on REGEX-- the double backslash is important due to "\" and "(" both being escape operators.
+
+
+# Creates a table with only one column
+weightlifters_with_doping_violations_no_parentheses_v_2 <- weightlifters_with_doping_violations_no_parentheses[2]
 ```
 
 The final step in analysis is to join the table of weightlifters with
 violations with the table of all lifters to separate the two
-populations.
+populations. In the table
+weightlifters_with_doping_violations_no_parentheses, there are many
+letters considered “special characters” in the English alphabet. There
+also appear to be extraneous capital letters, possibly from odd
+formatting from other alphabets. For simplicity, we can match special
+characters to the English character on which they are based. For
+example, “î”,“ï”, “í”, and “ì” would all match “i.” We check the
+encoding and get some bad news.
+
+``` r
+Encoding(weightlifters_with_doping_violations_no_parentheses_v_2$weightlifters_with_doping_violations_no_parentheses)
+```
+
+    ##   [1] "unknown" "unknown" "unknown" "unknown" "unknown" "UTF-8"   "UTF-8"  
+    ##   [8] "unknown" "unknown" "unknown" "unknown" "unknown" "unknown" "unknown"
+    ##  [15] "unknown" "unknown" "unknown" "UTF-8"   "unknown" "UTF-8"   "unknown"
+    ##  [22] "unknown" "unknown" "unknown" "unknown" "unknown" "unknown" "UTF-8"  
+    ##  [29] "unknown" "unknown" "unknown" "unknown" "unknown" "unknown" "UTF-8"  
+    ##  [36] "UTF-8"   "unknown" "unknown" "unknown" "unknown" "unknown" "unknown"
+    ##  [43] "unknown" "unknown" "unknown" "UTF-8"   "unknown" "unknown" "UTF-8"  
+    ##  [50] "UTF-8"   "unknown" "unknown" "unknown" "unknown" "UTF-8"   "unknown"
+    ##  [57] "unknown" "unknown" "unknown" "unknown" "unknown" "unknown" "unknown"
+    ##  [64] "unknown" "unknown" "unknown" "unknown" "unknown" "unknown" "unknown"
+    ##  [71] "unknown" "unknown" "unknown" "unknown" "unknown" "unknown" "UTF-8"  
+    ##  [78] "unknown" "unknown" "unknown" "unknown" "unknown" "unknown" "unknown"
+    ##  [85] "UTF-8"   "unknown" "unknown" "unknown" "unknown" "unknown" "unknown"
+    ##  [92] "unknown" "unknown" "unknown" "unknown" "UTF-8"   "unknown" "unknown"
+    ##  [99] "unknown" "unknown" "unknown" "unknown" "UTF-8"   "unknown" "unknown"
+    ## [106] "UTF-8"   "unknown" "unknown" "unknown" "unknown" "unknown" "unknown"
+    ## [113] "unknown" "UTF-8"   "unknown" "UTF-8"   "unknown" "unknown" "unknown"
+    ## [120] "unknown" "unknown" "UTF-8"   "unknown" "unknown" "UTF-8"   "unknown"
+    ## [127] "unknown" "unknown" "unknown" "unknown" "unknown" "unknown" "unknown"
+    ## [134] "unknown" "unknown" "unknown" "unknown" "unknown" "unknown" "unknown"
+    ## [141] "unknown" "unknown" "unknown" "unknown" "UTF-8"   "unknown" "unknown"
+    ## [148] "unknown" "unknown" "unknown" "unknown" "unknown" "unknown" "unknown"
+    ## [155] "unknown" "UTF-8"   "UTF-8"   "unknown" "unknown" "UTF-8"   "unknown"
+    ## [162] "UTF-8"   "unknown" "UTF-8"   "unknown" "unknown" "unknown" "unknown"
+    ## [169] "unknown" "unknown" "unknown" "unknown" "unknown" "unknown" "unknown"
+    ## [176] "unknown" "unknown" "unknown" "unknown" "UTF-8"   "unknown" "unknown"
+    ## [183] "unknown" "unknown" "UTF-8"   "unknown" "UTF-8"   "UTF-8"   "unknown"
+
+``` r
+# Lots of code below that I don't want to delete yet in case I need it later...
+
+#weightlifters_with_doping_violations_reduced <- iconv(weightlifters_with_doping_violations_no_parentheses_v_2$weightlifters_with_doping_violations_no_parentheses,from="UTF-8",to="ASCII//TRANSLIT")
+#Encoding(weightlifters_with_doping_violations_reduced)
+
+#weightlifters_with_doping_violations_no_parentheses_v_2$weightlifters_with_doping_violations_no_parentheses = stri_trans_general(str = weightlifters_with_doping_violations_no_parentheses_v_2$weightlifters_with_doping_violations_no_parentheses, id = "Latin-ASCII")
+#Encoding(weightlifters_with_doping_violations_no_parentheses_v_2$weightlifters_with_doping_violations_no_parentheses)
+#view(weightlifters_with_doping_violations_no_parentheses_v_2)
+#library(stringi)
+#weightlifters_with_doping_violations_no_parentheses_v_2[, "weightlifters_with_doping_violations_no_parentheses" = stri_trans_general(str = weightlifters_with_doping_violations_no_parentheses_v_2, id = "Latin-ASCII")]
+```
+
+Unknown encoding will be difficult to “translate.”
 
 ## Analysis
 

@@ -22,11 +22,13 @@ Has drug testing made an impact on the performance of athletes in the sport?
 
 To answer this we can compare two populations, athletes who have tested positive for performance-enhancing drugs (PEDs) against those who have not. This tests a central assumption about drug testing, i.e. PEDs increase performance. If the positive-testing athletes (sometimes referred to as "popped") do not outperform the negative-testing athletes, the truth of this assumptions falls must be questioned.
 
-In order to compare all athlete, the [Sinclair Coefficient](https://iwf.sport/weightlifting_/sinclair-coefficient/) will be employed. This will allow us to compare performaces of athletes across weight classes and get a better understaning of the influence of drug testing on the sport as a whole.
+A quick primer on the sport of weightlifting: as sports go, it is relatively simple. Whoever lifts the most weight wins. Athletes are separated by assigned sex (male/female) and weight class. Weight class is a way of separating body types, as being larger and having more muscle allows people to typically lift more weight. Usually, the athletes are split into weight classes that are about 7kg apart. This means that all the athletes competing against one another weigh within 7kg (15 lbs) of each other. This allows broader participation in the sport, since it allows people who are not naturally large to compete. The standard modern convention is to identify a weight class by the maximum allowable bodyweight in that weight class. For example, the M 102kg category means that any man weighing less than 102kg is eligible to compete. (Note: athletes may always compete in a heavier category than their bodyweight, but it is almost never advantageous to do so, as the other competitors will be larger and stronger.)
+
+In order to compare all athlete, the [Sinclair Coefficient](https://iwf.sport/weightlifting_/sinclair-coefficient/) will be employed. This will allow us to compare performances of athletes across weight classes and get a better understanding of the influence of drug testing on the sport as a whole.
 
 We should note that the subjectivity of "talent" will always be part of this discussion. This conversation is inextricably linked with drug-testing, as genetics affect athletic performance, drug response, and even our ability to screen for drug use.
 
-Additional topics for study
+Additional topics for potential future study:
 
 * Prevalence of use by country, region, gender, etc.
 
@@ -121,7 +123,6 @@ At this point, we need to clean the disastrous formatting that is the event_titl
 
 This step of cleaning required r, as SQLite does not support REGEX. Data were queried, cleaned, then reuploaded to replace the original table.
 
-## Define weight class so that people who are not familiar with the sport can understand variable names (eg. weight_class_kg means the highest allowable body weight). Find shorter variable name.
 ```{r}
 weightlifting_results <- 
   dbGetQuery(con, "SELECT * FROM weightlifting_results")
@@ -129,18 +130,18 @@ weightlifting_results <-
 
 weightlifting_results_after_regex_extraction <-
 weightlifting_results %>%
-  mutate(weight_class_max_allowable_bodyweight_kg = as.numeric(str_extract(event_title, "([0-9.])+(?=kg)")
+  mutate(weight_class_kg = as.numeric(str_extract(event_title, "([0-9.])+(?=kg)")
   ))
 
-unique(sort(weightlifting_results_after_regex_extraction$weight_class_max_allowable_bodyweight_kg)) ## check for necessary changes
+unique(sort(weightlifting_results_after_regex_extraction$weight_class_kg)) ## check for necessary changes
 
 ## Since 825kg is a nonsensical number in weightlifting, we can universally replace 825 with 82.5.
 
 weightlifting_results_after_regex_extraction[weightlifting_results_after_regex_extraction == 825] <- 82.5
-unique(sort(weightlifting_results_after_regex_extraction$weight_class_max_allowable_bodyweight_kg))
+unique(sort(weightlifting_results_after_regex_extraction$weight_class_kg))
 
 ```
-This code conflates the weightclasses for the heaviest and second-heaviest categoies, but that will be sorted out with SQL. This resulting dataframe can be uploaded to our database.
+This code conflates the weight classes for the heaviest and second-heaviest categoies, but that will be sorted out with SQL. This resulting dataframe can be uploaded to our database.
 
 ```{r}
 dbWriteTable(con, 
@@ -165,17 +166,15 @@ Sinclair calculations are not perfect, as different weight classes are essential
 For this analysis, credited bodyweights for male and female superheavyweights were taken from the [IWF website](https://iwf.sport/wp-content/uploads/downloads/2023/05/2021-Sinclair_Coefficients.pdf).
 ```{sql connection=con}
 UPDATE weightlifting_results
-  SET weight_class_max_allowable_bodyweight_kg = 
+  SET weight_class_kg = 
     CASE 
       WHEN (sex = 'M' AND event_title LIKE '%+%') THEN 193.609
       WHEN (sex = 'M' AND event_title LIKE '%super%') THEN 193.609
       WHEN (sex = 'F' AND event_title LIKE '%+%') THEN 153.757
       WHEN (sex = 'F' AND event_title LIKE '%super%') THEN 153.757
-      ELSE weight_class_max_allowable_bodyweight_kg
+      ELSE weight_class_kg
   END
   
--- 1000 and 800 are placeholders while the event_title column is cleaned   
---  (REGEXP(([\d.+])+(?=kg)) should be the correct REGEX expression
 -- need both "super" and "+" to be accounted for
 -- [WHEN (event_title LIKE '%+%') THEN 1000 ELSE (1)]
 -- couldn't get the OR function to work inside LIKE function
@@ -183,9 +182,9 @@ UPDATE weightlifting_results
 ```
 
 ```{sql connection=con}
-SELECT DISTINCT weight_class_max_allowable_bodyweight_kg, event_title
+SELECT DISTINCT weight_class_kg, event_title
 FROM weightlifting_results
-ORDER BY weight_class_max_allowable_bodyweight_kg DESC
+ORDER BY weight_class_kg DESC
 
 ```
 
@@ -201,14 +200,14 @@ ALTER TABLE weightlifting_results
 UPDATE weightlifting_results
   SET sinclair = CASE
     WHEN (sex = 'F')
-    THEN  total_kg* POWER(10, 0.787004341*POWER(LOG10(weight_class_max_allowable_bodyweight_kg/153.757),2))
-    ELSE  total_kg* POWER(10, 0.722762521*POWER(LOG10(weight_class_max_allowable_bodyweight_kg/193.609),2))
+    THEN  total_kg* POWER(10, 0.787004341*POWER(LOG10(weight_class_kg/153.757),2))
+    ELSE  total_kg* POWER(10, 0.722762521*POWER(LOG10(weight_class_kg/193.609),2))
     END
 
 ```
 
 ```{sql connection=con}
-SELECT DISTINCT weight_class_max_allowable_bodyweight_kg, sinclair, athlete_full_name
+SELECT DISTINCT weight_class_kg, sinclair, athlete_full_name
 FROM weightlifting_results
 WHERE sex = 'F'
 ORDER BY sinclair DESC
@@ -223,24 +222,43 @@ As the last step in data cleaning and preparation, we need to add a table of lif
 
 Creating the new table.
 ```{r}
+setwd("~/Documents/Data Analytics Projects/Rxpose/Kaggle Olympics Data")
 weightlifters_with_doping_violations_raw <- read_csv("weightlifters_with_doping_violations.csv")
 str(weightlifters_with_doping_violations_raw)
 ```
 This table will also require some in-depth cleaning. The table includes parentheses (left over from the online source), and there are many spellings of names with non-English characters. Matching names and successfully executing a join with the previous table will require REGEX, so this portion of cleaning will necessitate R.
 
 ```{r}
-## This code removes the parentheses from the strings in the athelete's names and creates a new column for the cleaned names
+## This code removes the parentheses from the strings in the athlete's names and creates a new column for the cleaned names
 
 weightlifters_with_doping_violations_no_parentheses <-
 weightlifters_with_doping_violations_raw %>%
     mutate(weightlifters_with_doping_violations_no_parentheses = gsub("\\(.*$","",weightlifters_with_doping_violations_raw$weightlifters_with_doping_violations))
-
-view(weightlifters_with_doping_violations_no_parentheses)
-
 ## Note to self on REGEX-- the double backslash is important due to "\" and "(" both being escape operators.
+
+
+# Creates a table with only one column
+weightlifters_with_doping_violations_no_parentheses_v_2 <- weightlifters_with_doping_violations_no_parentheses[2]
+
 ```
 
-The final step in analysis is to join the table of weightlifters with violations with the table of all lifters to separate the two populations.
+The final step in analysis is to join the table of weightlifters with violations with the table of all lifters to separate the two populations. In the table weightlifters_with_doping_violations_no_parentheses, there are many letters considered "special characters" in the English alphabet. There also appear to be extraneous capital letters, possibly from odd formatting from other alphabets. For simplicity, we can match special characters to the English character on which they are based. For example, "î","ï", "í", and "ì" would all match "i." We check the encoding and get some bad news.
+
+```{r}
+Encoding(weightlifters_with_doping_violations_no_parentheses_v_2$weightlifters_with_doping_violations_no_parentheses)
+
+# Lots of code below that I don't want to delete yet in case I need it later...
+
+#weightlifters_with_doping_violations_reduced <- iconv(weightlifters_with_doping_violations_no_parentheses_v_2$weightlifters_with_doping_violations_no_parentheses,from="UTF-8",to="ASCII//TRANSLIT")
+#Encoding(weightlifters_with_doping_violations_reduced)
+
+#weightlifters_with_doping_violations_no_parentheses_v_2$weightlifters_with_doping_violations_no_parentheses = stri_trans_general(str = weightlifters_with_doping_violations_no_parentheses_v_2$weightlifters_with_doping_violations_no_parentheses, id = "Latin-ASCII")
+#Encoding(weightlifters_with_doping_violations_no_parentheses_v_2$weightlifters_with_doping_violations_no_parentheses)
+#view(weightlifters_with_doping_violations_no_parentheses_v_2)
+#library(stringi)
+#weightlifters_with_doping_violations_no_parentheses_v_2[, "weightlifters_with_doping_violations_no_parentheses" = stri_trans_general(str = weightlifters_with_doping_violations_no_parentheses_v_2, id = "Latin-ASCII")]
+```
+Unknown encoding will be difficult to "translate." 
 
 
 ## Analysis
