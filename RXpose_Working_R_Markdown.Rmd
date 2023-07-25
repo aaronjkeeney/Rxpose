@@ -252,6 +252,8 @@ weightlifters_with_doping_violations_reduced <- iconv(weightlifters_with_doping_
 df_weightlifters_with_doping_violations_reduced <- data.frame(weightlifters_with_doping_violations_reduced)
 colnames(df_weightlifters_with_doping_violations_reduced)[1] = "athlete_full_name"
 
+view(df_weightlifters_with_doping_violations_reduced)
+
 # Lots of code below that I don't want to delete yet in case I need it later...
 #Encoding(weightlifters_with_doping_violations_reduced)
 
@@ -268,7 +270,8 @@ After clearing, knitting, and revisiting, this code worked. After some research,
 
 SELECT * 
 FROM weightlifting_results
-LIMIT 10
+ORDER BY sinclair DESC
+LIMIT 30
 
 ```
 
@@ -278,8 +281,18 @@ library(fuzzyjoin)
 
 all_weightlifting_results_for_join <- dbGetQuery(con, "SELECT * FROM weightlifting_results")
 
-# The code below exhausted the vector memory when I used the entire weighlifting_results table. And with just the names.
-#positive_testing_lifters_closest_match <- fuzzy_inner_join(df_weightlifters_with_doping_violations_reduced, all_weightlifting_results_for_join, by = "athlete_full_name" , match_fun = stringdist::stringdistmatrix)
+all_weightlifting_results_for_join$athlete_full_name <- tolower(all_weightlifting_results_for_join$athlete_full_name)
+
+df_weightlifters_with_doping_violations_reduced_lower <- data.frame( tolower(df_weightlifters_with_doping_violations_reduced$athlete_full_name))
+
+colnames(df_weightlifters_with_doping_violations_reduced_lower)[1] = "athlete_full_name"
+
+# The code below exhausted the vector memory when I used a fuzzy join. The regular inner join returns some useful data, but it is incomplete.
+
+positive_testing_lifters_exact_matches <- inner_join(df_weightlifters_with_doping_violations_reduced_lower, all_weightlifting_results_for_join, by = "athlete_full_name")
+view(positive_testing_lifters_exact_matches)
+
+#positive_testing_lifters_closest_match <- fuzzy_inner_join(df_weightlifters_with_doping_violations_reduced_lower, all_weightlifting_results_for_join, by = "athlete_full_name", match_fun = stringdist::stringdistmatrix, method = "jaccard")
 
 #view(positive_testing_lifters_closest_match)
 ```

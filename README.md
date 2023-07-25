@@ -491,6 +491,8 @@ weightlifters_with_doping_violations_reduced <- iconv(weightlifters_with_doping_
 df_weightlifters_with_doping_violations_reduced <- data.frame(weightlifters_with_doping_violations_reduced)
 colnames(df_weightlifters_with_doping_violations_reduced)[1] = "athlete_full_name"
 
+view(df_weightlifters_with_doping_violations_reduced)
+
 # Lots of code below that I don't want to delete yet in case I need it later...
 #Encoding(weightlifters_with_doping_violations_reduced)
 
@@ -513,23 +515,24 @@ population of athletes.
 
 SELECT * 
 FROM weightlifting_results
-LIMIT 10
+ORDER BY sinclair DESC
+LIMIT 30
 ```
 
 <div class="knitsql-table">
 
-| event_title | rank_position | country_3_letter_code | athlete_full_name             | value_type | total_kg | year | sex | weight_class_kg | sinclair |
-|:------------|:--------------|:----------------------|:------------------------------|:-----------|---------:|-----:|:----|----------------:|---------:|
-| Men’s 61kg  | 4             | JPN                   | Yoichi ITOKAZU                | WEIGHT     |      292 | 2020 | M   |              61 | 443.8422 |
-| Men’s 61kg  | 12            | PER                   | Marcos Antonio ROJAS CONCHA   | WEIGHT     |      240 | 2020 | M   |              61 | 364.8018 |
-| Men’s 61kg  | 6             | ITA                   | Davide RUIU                   | WEIGHT     |      286 | 2020 | M   |              61 | 434.7222 |
-| Men’s 61kg  | 3             | KAZ                   | Igor SON                      | WEIGHT     |      294 | 2020 | M   |              61 | 446.8823 |
-| Men’s 61kg  | 9             | GER                   | Simon Josef BRANDHUBER        | WEIGHT     |      268 | 2020 | M   |              61 | 407.3621 |
-| Men’s 61kg  | 2             | INA                   | Eko Yuli IRAWAN               | WEIGHT     |      302 | 2020 | M   |              61 | 459.0423 |
-| Men’s 61kg  | 7             | GEO                   | Shota MISHVELIDZE             | WEIGHT     |      285 | 2020 | M   |              61 | 433.2022 |
-| Men’s 61kg  | 8             | DOM                   | Luis Alberto GARCIA BRITO     | WEIGHT     |      274 | 2020 | M   |              61 | 416.4821 |
-| Men’s 61kg  | 11            | MAD                   | Eric Herman ANDRIANTSITOHAINA | WEIGHT     |      264 | 2020 | M   |              61 | 401.2820 |
-| Men’s 61kg  | 10            | PNG                   | Morea BARU                    | WEIGHT     |      265 | 2020 | M   |              61 | 402.8020 |
+| event_title                          | rank_position | country_3_letter_code | athlete_full_name   | value_type | total_kg | year | sex | weight_class_kg | sinclair |
+|:-------------------------------------|:--------------|:----------------------|:--------------------|:-----------|---------:|-----:|:----|----------------:|---------:|
+| 56 - 60kg (featherweight) men        | 1             | TUR                   | Naim Süleymanoğlu   | WEIGHT     |    342.5 | 1988 | M   |            60.0 | 526.9247 |
+| 100 110kg heavyweight men            | 1             | URS                   | Yuri ZAKHAREVICH    | WEIGHT     |    455.0 | 1988 | M   |           110.0 | 503.0187 |
+| 75 825kg lightheavyweight men        | 1             | URS                   | Yuri Vardanyan      | WEIGHT     |    400.0 | 1980 | M   |            82.5 | 502.6418 |
+| 69kg men                             | 1             | BUL                   | Galabin BOEVSKI     | WEIGHT     |    357.5 | 2000 | M   |            69.0 | 499.3291 |
+| -56kg (bantamweight) men             | 1             | CHN                   | Qingquan LONG       | WEIGHT     |    307.0 | 2016 | M   |            56.0 | 497.6358 |
+| 67.5-75kg middleweight men           | 1             | BUL                   | Borislav GIDIKOV    | WEIGHT     |    375.0 | 1988 | M   |            75.0 | 497.3190 |
+| 82.5 - 90kg (middle-heavyweight) men | 1             | EUN                   | Akakios KAKIASVILIS | WEIGHT     |    412.5 | 1992 | M   |            90.0 | 495.9271 |
+| 82.5 - 90kg (middle-heavyweight) men | 2             | EUN                   | Serguei SYRTSOV     | WEIGHT     |    412.5 | 1992 | M   |            90.0 | 495.9271 |
+| 82.5 - 90kg (middle-heavyweight) men | 1             | URS                   | Anatoli KHRAPATY    | WEIGHT     |    412.5 | 1988 | M   |            90.0 | 495.9271 |
+| 77kg men                             | 1             | KAZ                   | Nidzhat Rakhimov    | WEIGHT     |    379.0 | 2016 | M   |            77.0 | 494.9174 |
 
 Displaying records 1 - 10
 
@@ -540,8 +543,18 @@ library(fuzzyjoin)
 
 all_weightlifting_results_for_join <- dbGetQuery(con, "SELECT * FROM weightlifting_results")
 
-# The code below exhausted the vector memory when I used the entire weighlifting_results table. And with just the names.
-#positive_testing_lifters_closest_match <- fuzzy_inner_join(df_weightlifters_with_doping_violations_reduced, all_weightlifting_results_for_join, by = "athlete_full_name" , match_fun = stringdist::stringdistmatrix)
+all_weightlifting_results_for_join$athlete_full_name <- tolower(all_weightlifting_results_for_join$athlete_full_name)
+
+df_weightlifters_with_doping_violations_reduced_lower <- data.frame( tolower(df_weightlifters_with_doping_violations_reduced$athlete_full_name))
+
+colnames(df_weightlifters_with_doping_violations_reduced_lower)[1] = "athlete_full_name"
+
+# The code below exhausted the vector memory when I used a fuzzy join. The regular inner join returns some useful data, but it is incomplete.
+
+positive_testing_lifters_exact_matches <- inner_join(df_weightlifters_with_doping_violations_reduced_lower, all_weightlifting_results_for_join, by = "athlete_full_name")
+view(positive_testing_lifters_exact_matches)
+
+#positive_testing_lifters_closest_match <- fuzzy_inner_join(df_weightlifters_with_doping_violations_reduced_lower, all_weightlifting_results_for_join, by = "athlete_full_name", match_fun = stringdist::stringdistmatrix, method = "jaccard")
 
 #view(positive_testing_lifters_closest_match)
 ```
