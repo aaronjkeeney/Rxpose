@@ -245,11 +245,14 @@ weightlifters_with_doping_violations_no_parentheses_v_2 <- weightlifters_with_do
 The final step in analysis is to join the table of weightlifters with violations with the table of all lifters to separate the two populations. In the table weightlifters_with_doping_violations_no_parentheses, there are many letters considered "special characters" in the English alphabet. There also appear to be extraneous capital letters, possibly from odd formatting from other alphabets. For simplicity, we can match special characters to the English character on which they are based. For example, "î","ï", "í", and "ì" would all match "i." We check the encoding and get some bad news.
 
 ```{r}
-Encoding(weightlifters_with_doping_violations_no_parentheses_v_2$weightlifters_with_doping_violations_no_parentheses)
+# Encoding(weightlifters_with_doping_violations_no_parentheses_v_2$weightlifters_with_doping_violations_no_parentheses)
+
+weightlifters_with_doping_violations_reduced <- iconv(weightlifters_with_doping_violations_no_parentheses_v_2$weightlifters_with_doping_violations_no_parentheses,from="UTF-8",to="ASCII//TRANSLIT")
+
+df_weightlifters_with_doping_violations_reduced <- data.frame(weightlifters_with_doping_violations_reduced)
+colnames(df_weightlifters_with_doping_violations_reduced)[1] = "athlete_full_name"
 
 # Lots of code below that I don't want to delete yet in case I need it later...
-
-#weightlifters_with_doping_violations_reduced <- iconv(weightlifters_with_doping_violations_no_parentheses_v_2$weightlifters_with_doping_violations_no_parentheses,from="UTF-8",to="ASCII//TRANSLIT")
 #Encoding(weightlifters_with_doping_violations_reduced)
 
 #weightlifters_with_doping_violations_no_parentheses_v_2$weightlifters_with_doping_violations_no_parentheses = stri_trans_general(str = weightlifters_with_doping_violations_no_parentheses_v_2$weightlifters_with_doping_violations_no_parentheses, id = "Latin-ASCII")
@@ -258,11 +261,30 @@ Encoding(weightlifters_with_doping_violations_no_parentheses_v_2$weightlifters_w
 #library(stringi)
 #weightlifters_with_doping_violations_no_parentheses_v_2[, "weightlifters_with_doping_violations_no_parentheses" = stri_trans_general(str = weightlifters_with_doping_violations_no_parentheses_v_2, id = "Latin-ASCII")]
 ```
-Unknown encoding will be difficult to "translate." 
+After clearing, knitting, and revisiting, this code worked. After some research, a "fuzzy join" looks promising, so that package is installed. A join will then separate the positive-testing lifters from the non-positive-testing lifters. The fuzzyjoin package in R has wonderful functinoality for Jaccard distance, so this step will be done in R. Then, two separate tables can be added to the database for each population of athletes.
 
+
+```{sql connection=con}
+
+SELECT * 
+FROM weightlifting_results
+LIMIT 10
+
+```
+
+
+```{r}
+library(fuzzyjoin)
+
+all_weightlifting_results_for_join <- dbGetQuery(con, "SELECT * FROM weightlifting_results")
+
+# The code below exhausted the vector memory when I used the entire weighlifting_results table. And with just the names.
+#positive_testing_lifters_closest_match <- fuzzy_inner_join(df_weightlifters_with_doping_violations_reduced, all_weightlifting_results_for_join, by = "athlete_full_name" , match_fun = stringdist::stringdistmatrix)
+
+#view(positive_testing_lifters_closest_match)
+```
 
 ## Analysis
-
 
 
 

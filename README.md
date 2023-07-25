@@ -1,7 +1,7 @@
 RXposé
 ================
 Aaron
-2023-07-19
+2023-07-25
 
 ## Rxposé: An Analysis of Performance-Enhancing Drug Use in the Sport of Weightlifting
 
@@ -484,41 +484,14 @@ example, “î”,“ï”, “í”, and “ì” would all match “i.” We c
 encoding and get some bad news.
 
 ``` r
-Encoding(weightlifters_with_doping_violations_no_parentheses_v_2$weightlifters_with_doping_violations_no_parentheses)
-```
+# Encoding(weightlifters_with_doping_violations_no_parentheses_v_2$weightlifters_with_doping_violations_no_parentheses)
 
-    ##   [1] "unknown" "unknown" "unknown" "unknown" "unknown" "UTF-8"   "UTF-8"  
-    ##   [8] "unknown" "unknown" "unknown" "unknown" "unknown" "unknown" "unknown"
-    ##  [15] "unknown" "unknown" "unknown" "UTF-8"   "unknown" "UTF-8"   "unknown"
-    ##  [22] "unknown" "unknown" "unknown" "unknown" "unknown" "unknown" "UTF-8"  
-    ##  [29] "unknown" "unknown" "unknown" "unknown" "unknown" "unknown" "UTF-8"  
-    ##  [36] "UTF-8"   "unknown" "unknown" "unknown" "unknown" "unknown" "unknown"
-    ##  [43] "unknown" "unknown" "unknown" "UTF-8"   "unknown" "unknown" "UTF-8"  
-    ##  [50] "UTF-8"   "unknown" "unknown" "unknown" "unknown" "UTF-8"   "unknown"
-    ##  [57] "unknown" "unknown" "unknown" "unknown" "unknown" "unknown" "unknown"
-    ##  [64] "unknown" "unknown" "unknown" "unknown" "unknown" "unknown" "unknown"
-    ##  [71] "unknown" "unknown" "unknown" "unknown" "unknown" "unknown" "UTF-8"  
-    ##  [78] "unknown" "unknown" "unknown" "unknown" "unknown" "unknown" "unknown"
-    ##  [85] "UTF-8"   "unknown" "unknown" "unknown" "unknown" "unknown" "unknown"
-    ##  [92] "unknown" "unknown" "unknown" "unknown" "UTF-8"   "unknown" "unknown"
-    ##  [99] "unknown" "unknown" "unknown" "unknown" "UTF-8"   "unknown" "unknown"
-    ## [106] "UTF-8"   "unknown" "unknown" "unknown" "unknown" "unknown" "unknown"
-    ## [113] "unknown" "UTF-8"   "unknown" "UTF-8"   "unknown" "unknown" "unknown"
-    ## [120] "unknown" "unknown" "UTF-8"   "unknown" "unknown" "UTF-8"   "unknown"
-    ## [127] "unknown" "unknown" "unknown" "unknown" "unknown" "unknown" "unknown"
-    ## [134] "unknown" "unknown" "unknown" "unknown" "unknown" "unknown" "unknown"
-    ## [141] "unknown" "unknown" "unknown" "unknown" "UTF-8"   "unknown" "unknown"
-    ## [148] "unknown" "unknown" "unknown" "unknown" "unknown" "unknown" "unknown"
-    ## [155] "unknown" "UTF-8"   "UTF-8"   "unknown" "unknown" "UTF-8"   "unknown"
-    ## [162] "UTF-8"   "unknown" "UTF-8"   "unknown" "unknown" "unknown" "unknown"
-    ## [169] "unknown" "unknown" "unknown" "unknown" "unknown" "unknown" "unknown"
-    ## [176] "unknown" "unknown" "unknown" "unknown" "UTF-8"   "unknown" "unknown"
-    ## [183] "unknown" "unknown" "UTF-8"   "unknown" "UTF-8"   "UTF-8"   "unknown"
+weightlifters_with_doping_violations_reduced <- iconv(weightlifters_with_doping_violations_no_parentheses_v_2$weightlifters_with_doping_violations_no_parentheses,from="UTF-8",to="ASCII//TRANSLIT")
 
-``` r
+df_weightlifters_with_doping_violations_reduced <- data.frame(weightlifters_with_doping_violations_reduced)
+colnames(df_weightlifters_with_doping_violations_reduced)[1] = "athlete_full_name"
+
 # Lots of code below that I don't want to delete yet in case I need it later...
-
-#weightlifters_with_doping_violations_reduced <- iconv(weightlifters_with_doping_violations_no_parentheses_v_2$weightlifters_with_doping_violations_no_parentheses,from="UTF-8",to="ASCII//TRANSLIT")
 #Encoding(weightlifters_with_doping_violations_reduced)
 
 #weightlifters_with_doping_violations_no_parentheses_v_2$weightlifters_with_doping_violations_no_parentheses = stri_trans_general(str = weightlifters_with_doping_violations_no_parentheses_v_2$weightlifters_with_doping_violations_no_parentheses, id = "Latin-ASCII")
@@ -528,7 +501,50 @@ Encoding(weightlifters_with_doping_violations_no_parentheses_v_2$weightlifters_w
 #weightlifters_with_doping_violations_no_parentheses_v_2[, "weightlifters_with_doping_violations_no_parentheses" = stri_trans_general(str = weightlifters_with_doping_violations_no_parentheses_v_2, id = "Latin-ASCII")]
 ```
 
-Unknown encoding will be difficult to “translate.”
+After clearing, knitting, and revisiting, this code worked. After some
+research, a “fuzzy join” looks promising, so that package is installed.
+A join will then separate the positive-testing lifters from the
+non-positive-testing lifters. The fuzzyjoin package in R has wonderful
+functinoality for Jaccard distance, so this step will be done in R.
+Then, two separate tables can be added to the database for each
+population of athletes.
+
+``` sql
+
+SELECT * 
+FROM weightlifting_results
+LIMIT 10
+```
+
+<div class="knitsql-table">
+
+| event_title | rank_position | country_3_letter_code | athlete_full_name             | value_type | total_kg | year | sex | weight_class_kg | sinclair |
+|:------------|:--------------|:----------------------|:------------------------------|:-----------|---------:|-----:|:----|----------------:|---------:|
+| Men’s 61kg  | 4             | JPN                   | Yoichi ITOKAZU                | WEIGHT     |      292 | 2020 | M   |              61 | 443.8422 |
+| Men’s 61kg  | 12            | PER                   | Marcos Antonio ROJAS CONCHA   | WEIGHT     |      240 | 2020 | M   |              61 | 364.8018 |
+| Men’s 61kg  | 6             | ITA                   | Davide RUIU                   | WEIGHT     |      286 | 2020 | M   |              61 | 434.7222 |
+| Men’s 61kg  | 3             | KAZ                   | Igor SON                      | WEIGHT     |      294 | 2020 | M   |              61 | 446.8823 |
+| Men’s 61kg  | 9             | GER                   | Simon Josef BRANDHUBER        | WEIGHT     |      268 | 2020 | M   |              61 | 407.3621 |
+| Men’s 61kg  | 2             | INA                   | Eko Yuli IRAWAN               | WEIGHT     |      302 | 2020 | M   |              61 | 459.0423 |
+| Men’s 61kg  | 7             | GEO                   | Shota MISHVELIDZE             | WEIGHT     |      285 | 2020 | M   |              61 | 433.2022 |
+| Men’s 61kg  | 8             | DOM                   | Luis Alberto GARCIA BRITO     | WEIGHT     |      274 | 2020 | M   |              61 | 416.4821 |
+| Men’s 61kg  | 11            | MAD                   | Eric Herman ANDRIANTSITOHAINA | WEIGHT     |      264 | 2020 | M   |              61 | 401.2820 |
+| Men’s 61kg  | 10            | PNG                   | Morea BARU                    | WEIGHT     |      265 | 2020 | M   |              61 | 402.8020 |
+
+Displaying records 1 - 10
+
+</div>
+
+``` r
+library(fuzzyjoin)
+
+all_weightlifting_results_for_join <- dbGetQuery(con, "SELECT * FROM weightlifting_results")
+
+# The code below exhausted the vector memory when I used the entire weighlifting_results table. And with just the names.
+#positive_testing_lifters_closest_match <- fuzzy_inner_join(df_weightlifters_with_doping_violations_reduced, all_weightlifting_results_for_join, by = "athlete_full_name" , match_fun = stringdist::stringdistmatrix)
+
+#view(positive_testing_lifters_closest_match)
+```
 
 ## Analysis
 
