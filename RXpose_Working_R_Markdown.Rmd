@@ -252,7 +252,8 @@ weightlifters_with_doping_violations_reduced <- iconv(weightlifters_with_doping_
 df_weightlifters_with_doping_violations_reduced <- data.frame(weightlifters_with_doping_violations_reduced)
 colnames(df_weightlifters_with_doping_violations_reduced)[1] = "athlete_full_name"
 
-view(df_weightlifters_with_doping_violations_reduced)
+#df_weightlifters_with_doping_violations_reduced <-
+#  str_replace_all(df_weightlifters_with_doping_violations_reduced$athlete_full_name,'^a-zA-Z0-\\', '')
 
 # Lots of code below that I don't want to delete yet in case I need it later...
 #Encoding(weightlifters_with_doping_violations_reduced)
@@ -290,12 +291,41 @@ colnames(df_weightlifters_with_doping_violations_reduced_lower)[1] = "athlete_fu
 # The code below exhausted the vector memory when I used a fuzzy join. The regular inner join returns some useful data, but it is incomplete.
 
 positive_testing_lifters_exact_matches <- inner_join(df_weightlifters_with_doping_violations_reduced_lower, all_weightlifting_results_for_join, by = "athlete_full_name")
+
 view(positive_testing_lifters_exact_matches)
 
 #positive_testing_lifters_closest_match <- fuzzy_inner_join(df_weightlifters_with_doping_violations_reduced_lower, all_weightlifting_results_for_join, by = "athlete_full_name", match_fun = stringdist::stringdistmatrix, method = "jaccard")
 
 #view(positive_testing_lifters_closest_match)
 ```
+
+
+Code used for editing that shouldn't be deleted yet:
+```{r}
+## This code removes names that match in the hope that enough memory would be freed.
+#doping_names_without_exact_match <- anti_join(df_weightlifters_with_doping_violations_reduced_lower, positive_testing_lifters_exact_matches, by="athlete_full_name")
+
+#doping_names_without_exact_match <- gsub("[^[:alnum:],]", "", doping_names_without_exact_match)
+
+#doping_names_without_exact_match <- str_split(doping_names_without_exact_match_letters_only, ",")
+#str(doping_names_without_exact_match)
+
+#doping_names_without_exact_match <- data.frame(doping_names_without_exact_match)
+#doping_names_without_exact_match[doping_names_without_exact_match == "chenadzialiashchuk"] = "henadzialiashchuk"
+#colnames(doping_names_without_exact_match)[1] = "athlete_full_name"
+#view(doping_names_without_exact_match)
+
+#fuzzy_inner_join(doping_names_without_exact_match, all_weightlifting_results_for_join, by = "athlete_full_name", match_fun = stringdist::stringdistmatrix, method = "jaccard")
+
+```
+
+
+
+```{r}
+test_join <- stringdist_inner_join(all_weightlifting_results_for_join, df_weightlifters_with_doping_violations_reduced, by = "athlete_full_name", method = "jaccard", max_dist = 0.2)
+view(test_join)
+```
+
 
 ## Analysis
 
