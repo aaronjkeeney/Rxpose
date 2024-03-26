@@ -214,6 +214,15 @@ ORDER BY sinclair DESC
 LIMIT 30
 
 ```
+```{sql connection=con}
+
+SELECT weight_class_kg, athlete_full_name, sinclair
+FROM weightlifting_results
+ORDER BY sinclair DESC
+LIMIT 30
+
+```
+
 While not the correct Sincalir for each individual athlete, this will serve well enough for the purposes of this study. This list is absolutley not intended to rank athletes' performances. I would like to apologize especially to Lasha Talakhadze, who as the best superheavyweight in history appears at #28 on this ranking. Using historical Sinclair calculations, he appears at #2 behind Naim Süleymanoglu, but I still have faith that Lasha will hit the legendary 500kg total before he retires.
 
 It is interesting to note that two female superheavyweights appear in the top 10 in this ranking. I will not analyze that too much here, but there is likely a huge amount of influence on this calcultion by representation in the sport. The number of male athletes (historically) is far greater, and it would be wonderful to see how more female representation would change the sport.
@@ -245,10 +254,16 @@ weightlifters_with_doping_violations_no_parentheses_v_2 <- weightlifters_with_do
 The final step in analysis is to join the table of weightlifters with violations with the table of all lifters to separate the two populations. In the table weightlifters_with_doping_violations_no_parentheses, there are many letters considered "special characters" in the English alphabet. There also appear to be extraneous capital letters, possibly from odd formatting from other alphabets. For simplicity, we can match special characters to the English character on which they are based. For example, "î","ï", "í", and "ì" would all match "i." We check the encoding and get some bad news.
 
 ```{r}
-# Encoding(weightlifters_with_doping_violations_no_parentheses_v_2$weightlifters_with_doping_violations_no_parentheses)
+Encoding(weightlifters_with_doping_violations_no_parentheses_v_2$weightlifters_with_doping_violations_no_parentheses)
+```
 
+
+```{r}
+# Force encoding in basic Latin English alphabet
 weightlifters_with_doping_violations_reduced <- iconv(weightlifters_with_doping_violations_no_parentheses_v_2$weightlifters_with_doping_violations_no_parentheses,from="UTF-8",to="ASCII//TRANSLIT")
 
+
+# Removal of all spaces, non-letter characters, and spaces. This can probably be optimized with a few pipes.
 df_weightlifters_with_doping_violations_reduced <- data.frame(weightlifters_with_doping_violations_reduced)
 colnames(df_weightlifters_with_doping_violations_reduced)[1] = "athlete_full_name"
 
@@ -258,31 +273,8 @@ colnames(df_weightlifters_with_doping_violations_reduced_lower)[1] = "athlete_fu
 df_weightlifters_with_doping_violations_reduced_lower <- data.frame(gsub("[^[:alnum:\\,]", "", df_weightlifters_with_doping_violations_reduced_lower$athlete_full_name))
 colnames(df_weightlifters_with_doping_violations_reduced_lower)[1] = "athlete_full_name"
 view(df_weightlifters_with_doping_violations_reduced_lower)
-
-#df_weightlifters_with_doping_violations_reduced <-
-#  str_replace_all(df_weightlifters_with_doping_violations_reduced$athlete_full_name,'^a-zA-Z0-\\', '')
-
-# Lots of code below that I don't want to delete yet in case I need it later...
-#Encoding(weightlifters_with_doping_violations_reduced)
-
-#weightlifters_with_doping_violations_no_parentheses_v_2$weightlifters_with_doping_violations_no_parentheses = stri_trans_general(str = weightlifters_with_doping_violations_no_parentheses_v_2$weightlifters_with_doping_violations_no_parentheses, id = "Latin-ASCII")
-#Encoding(weightlifters_with_doping_violations_no_parentheses_v_2$weightlifters_with_doping_violations_no_parentheses)
-#view(weightlifters_with_doping_violations_no_parentheses_v_2)
-#library(stringi)
-#weightlifters_with_doping_violations_no_parentheses_v_2[, "weightlifters_with_doping_violations_no_parentheses" = stri_trans_general(str = weightlifters_with_doping_violations_no_parentheses_v_2, id = "Latin-ASCII")]
 ```
 After clearing, knitting, and revisiting, this code worked. After some research, a "fuzzy join" looks promising, so that package is installed. A join will then separate the positive-testing lifters from the non-positive-testing lifters. The fuzzyjoin package in R has wonderful functinoality for Jaccard distance, so this step will be done in R. Then, two separate tables can be added to the database for each population of athletes.
-
-
-```{sql connection=con}
-
-SELECT * 
-FROM weightlifting_results
-ORDER BY sinclair DESC
-LIMIT 30
-
-```
-
 
 ```{r}
 library(fuzzyjoin)
@@ -315,8 +307,8 @@ view(positive_testing_lifters_without_exact_matches)
 There are 69 exact name matches in the results. We can now run some form of approximate match function to classify the rest.
 
 ```{r}
-test_join <- stringdist_inner_join(positive_testing_lifters_without_exact_matches, weightlifting_results_without_exact_matches, by = "athlete_full_name", method = "cosine", max_dist = 0.05)
-view(test_join)
+positive_testing_lifters_closest_match <- stringdist_inner_join(positive_testing_lifters_without_exact_matches, weightlifting_results_without_exact_matches, by = "athlete_full_name", method = "cosine", max_dist = 0.08)
+view(positive_testing_lifters_closest_match)
 
 #repeated_names <- inner_join(test_join, positive_testing_lifters_exact_matches, by = c('athlete_full_name.x' = 'athlete_full_name'))
 #view(repeated_names)
@@ -324,8 +316,17 @@ view(test_join)
 #names_from_only_stringdist <- anti_join(test_join, positive_testing_lifters_exact_matches, by = c('athlete_full_name.x' = 'athlete_full_name'))
 #view(names_from_only_stringdist)
 ```
-Cosine distances and Jaccard distances give slightly different results, but with the inexact matching, we are able to add between 10 and 20 other names. It would be good to check to see if the original dataset includes some athletes who had medals stripped (Klokov is a famous example). This approximate matching has done a good job of catching missing characters as well as matching Asian names that are sometimes transcribed into English in different orders.
+Cosine similarity and Jaccard distance give slightly different results, but with the approximate matching, we are able to add between 10 and 30 other names.  This approximate matching has done a good job of catching missing characters or middle names. It also matches Asian names that are sometimes transcribed into English in differing orders. Finding the correct cutoff for the maximum distance will take some trial and error. Major considerations are:
 
+* Misspellings and omitted characters need to be matched.
+
+* Missing or reordered names need to be matched. Fortunately, cosine similarity is perfect for this.
+
+* Many names are similar, and multiple generations of the same family often participate in the same sport. Parents and children should not match. Unfortunately, cosine similarity makes this tough.
+
+
+
+It would be good to check to see if the original dataset includes some athletes who had medals stripped (Klokov is a famous example). Also recent positive tests may not be included (Lu Xiaojun)
 ```{sql connection=con}
 SELECT athlete_full_name, rank_position, sinclair
 FROM weightlifting_results
